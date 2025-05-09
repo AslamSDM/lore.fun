@@ -6,7 +6,14 @@ import Link from "next/link";
 import { useWeb3 } from "../context/Web3Context";
 import FeaturedStory from "../components/FeaturedStory";
 import StoryCard from "../components/StoryCard";
-
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 export default function Home({ supabaseClient }) {
   const [featuredStory, setFeaturedStory] = useState(null);
   const [stories, setStories] = useState([]);
@@ -69,8 +76,8 @@ export default function Home({ supabaseClient }) {
               LORE.FUN
             </h1>
             <p className="text-xl md:text-2xl text-gray-300 max-w-3xl mx-auto">
-              Collaborative storytelling powered by $LORE tokens. Create, vote,
-              and bring stories to life.
+              Join the first decentralized movie production. Submit storylines,
+              vote on the best content, and bring stories to life.
             </p>
           </div>
 
@@ -132,48 +139,65 @@ export default function Home({ supabaseClient }) {
             </div>
           )}
         </section>
-
-        <section className="mb-16">
-          <div className="bg-gray-800 rounded-lg p-8 border border-gray-700">
-            <h2 className="text-3xl font-bold text-violet-400 mb-6 font-medieval">
-              HOW IT WORKS
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              <div className="text-center">
-                <div className="w-16 h-16 bg-violet-700 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <span className="text-2xl font-bold">1</span>
-                </div>
-                <h3 className="text-xl font-medieval text-violet-300 mb-2">
-                  SUBMIT
-                </h3>
-                <p className="text-gray-300">
-                  Hold $LORE tokens to submit the next sentence to any active
-                  story.
-                </p>
-              </div>
-              <div className="text-center">
-                <div className="w-16 h-16 bg-violet-700 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <span className="text-2xl font-bold">2</span>
-                </div>
-                <h3 className="text-xl font-medieval text-violet-300 mb-2">
-                  VOTE
-                </h3>
-                <p className="text-gray-300">
-                  Use your $LORE tokens to vote on your favorite submissions.
-                </p>
-              </div>
-              <div className="text-center">
-                <div className="w-16 h-16 bg-violet-700 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <span className="text-2xl font-bold">3</span>
-                </div>
-                <h3 className="text-xl font-medieval text-violet-300 mb-2">
-                  CREATE
-                </h3>
-                <p className="text-gray-300">
-                  Watch as stories evolve into full narratives worthy of the
-                  screen.
-                </p>
-              </div>
+        <section className="w-full py-12 md:py-24 lg:py-32">
+          <div className="container px-4 md:px-6">
+            <div className="mx-auto flex max-w-[58rem] flex-col items-center justify-center gap-4 text-center">
+              <h2 className="text-3xl font-bold leading-[1.1] sm:text-3xl md:text-5xl font-medieval">
+                How It Works
+              </h2>
+              <p className="max-w-[85%] leading-normal text-muted-foreground sm:text-lg sm:leading-7">
+                Our decentralized platform allows token holders to shape the
+                future of storytelling
+              </p>
+            </div>
+            <div className="mx-auto grid justify-center gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 lg:gap-8 mt-8">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="font-medieval text-sm">
+                    1. Connect Wallet
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p>
+                    Hold $MOV tokens to participate in the storytelling process
+                  </p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="font-medieval text-sm">
+                    2. Submit Ideas
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p>
+                    Propose the next sentence in the Bitcoin movie storyline
+                  </p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="font-medieval text-sm">
+                    3. Vote
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p>Cast your vote for the best continuation of the story</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="font-medieval text-sm">
+                    4. Earn Rewards
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p>
+                    Get rewarded when your submissions are selected by the
+                    community
+                  </p>
+                </CardContent>
+              </Card>
             </div>
           </div>
         </section>

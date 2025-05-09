@@ -34,18 +34,18 @@ export default function Header() {
   };
 
   return (
-    <header className="bg-gray-800 border-b border-gray-700">
+    <header className="bg-[#b99be680] ">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center">
             <Link href="/">
               <div className="flex items-center">
-                <Image
+                {/* <Image
                   src="/logo.png"
                   alt="Lore.fun Logo"
                   width={40}
                   height={40}
-                />
+                /> */}
                 <span className="ml-2 text-xl font-bold text-violet-400 font-medieval">
                   LORE.FUN
                 </span>
@@ -106,7 +106,7 @@ export default function Header() {
                 </span>
                 <button
                   onClick={handleDisconnectWallet}
-                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white font-medieval rounded-md transition duration-300"
+                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white font-medieval rounded-md transition duration-300 text-xs "
                 >
                   DISCONNECT
                 </button>
@@ -115,7 +115,7 @@ export default function Header() {
               <button
                 onClick={handleConnectWallet}
                 disabled={isConnecting}
-                className="px-4 py-2 bg-violet-700 hover:bg-violet-600 text-white font-medieval rounded-md transition duration-300 disabled:opacity-50"
+                className="px-4 py-2 bg-violet-700 hover:bg-violet-600 text-white font-medieval rounded-md transition duration-300 disabled:opacity-50 text-xs "
               >
                 {isConnecting ? "CONNECTING..." : "CONNECT WALLET"}
               </button>
