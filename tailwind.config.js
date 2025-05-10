@@ -1,7 +1,3 @@
-/** @type {import('tailwindcss').Config} */
-
-const { fontFamily } = require("tailwindcss/defaultTheme");
-
 module.exports = {
   darkMode: ["class"],
   content: [
@@ -47,77 +43,14 @@ module.exports = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        violet: {
-          50: "#f5f3ff",
-          100: "#ede9fe",
-          200: "#ddd6fe",
-          300: "#c4b5fd",
-          400: "#a78bfa",
-          500: "#8b5cf6",
-          600: "#7c3aed",
-          700: "#6d28d9",
-          800: "#5b21b6",
-          900: "#4c1d95",
-        },
-        borderRadius: {
-          lg: "var(--radius)",
-          md: "calc(var(--radius) - 2px)",
-          sm: "calc(var(--radius) - 4px)",
-        },
-        typography: (theme) => ({
-          DEFAULT: {
-            css: {
-              color: theme("colors.gray.300"),
-              a: {
-                color: theme("colors.violet.400"),
-                "&:hover": {
-                  color: theme("colors.violet.300"),
-                },
-              },
-              h1: {
-                color: theme("colors.violet.400"),
-                fontFamily: "Medieval, serif",
-              },
-              h2: {
-                color: theme("colors.violet.400"),
-                fontFamily: "Medieval, serif",
-              },
-              h3: {
-                color: theme("colors.violet.400"),
-                fontFamily: "Medieval, serif",
-              },
-              h4: {
-                color: theme("colors.violet.400"),
-                fontFamily: "Medieval, serif",
-              },
-              strong: {
-                color: theme("colors.violet.300"),
-              },
-              blockquote: {
-                color: theme("colors.gray.300"),
-                borderLeftColor: theme("colors.violet.700"),
-              },
-              code: {
-                color: theme("colors.violet.300"),
-              },
-              pre: {
-                backgroundColor: theme("colors.gray.800"),
-              },
-              hr: {
-                borderColor: theme("colors.gray.700"),
-              },
-            },
-          },
-        }),
+        "card-bg": "#111827",
       },
-      fontFamily: {
-        sans: ["var(--font-medieval)", ...fontFamily.sans],
+      borderRadius: {
+        lg: "var(--radius)",
+        md: "calc(var(--radius) - 2px)",
+        sm: "calc(var(--radius) - 4px)",
       },
     },
-    plugins: [
-      require("@tailwindcss/typography"),
-      require("@tailwindcss/line-clamp"),
-      require("tailwindcss-animate"),
-    ],
   },
-};
+  plugins: [require("tailwindcss-animate")],
+}
