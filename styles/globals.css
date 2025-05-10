@@ -16,6 +16,14 @@ body {
 
 @font-face {
   font-family: "Medieval";
+  src: url("/fonts/lorefont2.woff2") format("woff2");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Artemis";
   src: url("/fonts/lorefont.woff2") format("woff2");
   font-weight: normal;
   font-style: normal;
@@ -24,6 +32,11 @@ body {
 
 .font-medieval {
   font-family: "Medieval", sans-serif;
+  letter-spacing: 0.05em;
+}
+
+.font-medieval2 {
+  font-family: "Artemis", sans-serif;
   letter-spacing: 0.05em;
 }
 
