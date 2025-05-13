@@ -1,11 +1,11 @@
-"use client"
+"use client";
 
-import Link from "next/link"
-import Image from "next/image"
-import { useWallet } from "../hooks/use-wallet"
+import Link from "next/link";
+import Image from "next/image";
+import { useWallet } from "../hooks/use-wallet";
 
 export default function Navbar() {
-  const { connected, connect } = useWallet()
+  const { connected, connect, user } = useWallet();
 
   return (
     <nav className="border-b border-gray-800 bg-background">
@@ -17,7 +17,9 @@ export default function Navbar() {
             </div>
             <span className="text-xl font-bold">Lore.Fun</span>
           </Link>
-          <div className="ml-4 px-2 py-1 bg-opacity-20 bg-primary rounded-full text-sm">$LORE</div>
+          <div className="ml-4 px-2 py-1 bg-opacity-20 bg-primary rounded-full text-sm">
+            $LORE
+          </div>
         </div>
 
         <div className="hidden md:flex items-center space-x-6">
@@ -32,16 +34,22 @@ export default function Navbar() {
           </Link>
 
           {connected ? (
-            <Link href="/profile" className="bg-primary text-white px-4 py-2 rounded-md">
-              My Profile
+            <Link
+              href="/profile"
+              className="bg-primary text-white px-4 py-2 rounded-md"
+            >
+              {user?.username || "My Profile"}
             </Link>
           ) : (
-            <button onClick={connect} className="bg-primary text-white px-4 py-2 rounded-md">
+            <button
+              onClick={connect}
+              className="bg-primary text-white px-4 py-2 rounded-md"
+            >
               Connect Wallet
             </button>
           )}
         </div>
       </div>
     </nav>
-  )
+  );
 }
