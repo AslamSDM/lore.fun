@@ -1,2 +1,2 @@
 # LORE.FUN
-## Collaborative Storytelling
+## Collaborative Storytelling onchain
