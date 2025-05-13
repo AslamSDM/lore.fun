@@ -119,8 +119,8 @@ export default function ProfilePage() {
           <div className="card">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-bold">My Stories</h2>
-              <Link href="/create">
-                <button className="btn-primary">Create New Story</button>
+              <Link href="/create" className="btn-primary">
+                Create New Story
               </Link>
             </div>
 
@@ -131,24 +131,26 @@ export default function ProfilePage() {
             ) : stories.length > 0 ? (
               <div className="space-y-4">
                 {stories.map((story) => (
-                  <Link href={`/stories/${story.id}`} key={story.id}>
-                    <div className="border border-gray-700 rounded-lg p-4 hover:border-primary cursor-pointer transition-all">
-                      <h3 className="text-lg font-medium mb-1">{story.title}</h3>
-                      <p className="text-gray-400 text-sm mb-3">{story.subtitle || story.genre}</p>
+                  <Link
+                    href={`/stories/${story.id}`}
+                    key={story.id}
+                    className="border border-gray-700 rounded-lg p-4 hover:border-primary cursor-pointer transition-all block"
+                  >
+                    <h3 className="text-lg font-medium mb-1">{story.title}</h3>
+                    <p className="text-gray-400 text-sm mb-3">{story.subtitle || story.genre}</p>
 
-                      <div className="grid grid-cols-3 gap-4 text-sm">
-                        <div>
-                          <p className="text-gray-400">Sentences</p>
-                          <p>{story.sentences_count}</p>
-                        </div>
-                        <div>
-                          <p className="text-gray-400">Contributors</p>
-                          <p>{story.contributors_count}</p>
-                        </div>
-                        <div>
-                          <p className="text-gray-400">Created</p>
-                          <p>{new Date(story.created_at).toLocaleDateString()}</p>
-                        </div>
+                    <div className="grid grid-cols-3 gap-4 text-sm">
+                      <div>
+                        <p className="text-gray-400">Sentences</p>
+                        <p>{story.sentences_count}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-400">Contributors</p>
+                        <p>{story.contributors_count}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-400">Created</p>
+                        <p>{new Date(story.created_at).toLocaleDateString()}</p>
                       </div>
                     </div>
                   </Link>
@@ -157,8 +159,8 @@ export default function ProfilePage() {
             ) : (
               <div className="text-center py-8">
                 <p className="text-gray-400 mb-4">You haven't created any stories yet.</p>
-                <Link href="/create">
-                  <button className="btn-primary">Create Your First Story</button>
+                <Link href="/create" className="btn-primary">
+                  Create Your First Story
                 </Link>
               </div>
             )}

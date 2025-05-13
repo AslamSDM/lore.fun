@@ -14,7 +14,7 @@ export default function Home() {
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
-              <h1 className="text-4xl md:text-6xl font-bold mb-6 font-medieval2">
+              <h1 className="text-4xl md:text-6xl font-bold mb-6  font-medieval2">
                 Collaborative Storytelling on the Blockchain
               </h1>
               <p className="text-xl text-gray-300 mb-8">
@@ -23,8 +23,8 @@ export default function Home() {
                 $LORE-themed story.
               </p>
               <div className="flex flex-wrap gap-4">
-                <Link href="/stories">
-                  <p className="btn-primary">Read Current Story</p>
+                <Link href="/stories" className="btn-primary">
+                  Read Current Story
                 </Link>
                 {!connected && (
                   <button onClick={connect} className="btn-secondary">
@@ -124,10 +124,11 @@ export default function Home() {
                 </div>
               </div>
 
-              <Link href="/submit">
-                <p className="btn-primary w-full text-center mt-8 block">
-                  Submit Next Sentence
-                </p>
+              <Link
+                href="/submit"
+                className="btn-primary w-full text-center mt-8 block"
+              >
+                Submit Next Sentence
               </Link>
             </div>
           </div>

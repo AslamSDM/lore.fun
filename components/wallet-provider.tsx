@@ -1,167 +1,125 @@
-"use client";
+"use client"
 
-import { createContext, useEffect, useState, type ReactNode } from "react";
-import { useWallet as useSolanaWallet } from "@solana/wallet-adapter-react";
-import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
-import { supabase } from "../lib/supabase";
-import type { User } from "../lib/types";
-import { useRouter } from "next/router";
+import { createContext, useEffect, useState, type ReactNode } from "react"
+import { useWallet as useSolanaWallet } from "@solana/wallet-adapter-react"
+import { getOrCreateUser, updateUsername } from "../lib/solana"
+import type { User } from "../lib/types"
+import UsernameModal from "./username-modal"
 
 interface WalletContextType {
-  user: User | null;
-  loading: boolean;
-  checkUsername: () => Promise<boolean>;
-  setUsername: (
-    username: string
-  ) => Promise<{ success: boolean; error?: string }>;
-  getUserStats: () => Promise<divny>;
+  connected: boolean
+  connecting: boolean
+  publicKey: string | null
+  connect: () => Promise<void>
+  disconnect: () => void
+  balance: number
+  user: User | null
+  loading: boolean
+  setUsername: (username: string) => Promise<{ success: boolean; error: string | null }>
 }
 
 export const WalletContext = createContext<WalletContextType>({
+  connected: false,
+  connecting: false,
+  publicKey: null,
+  connect: async () => {},
+  disconnect: () => {},
+  balance: 0,
   user: null,
   loading: true,
-  checkUsername: async () => false,
-  setUsername: async () => ({ success: false }),
-  getUserStats: async () => ({}),
-});
+  setUsername: async () => ({ success: false, error: null }),
+})
 
 export function WalletProvider({ children }: { children: ReactNode }) {
-  const { publicKey, connected } = useSolanaWallet();
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-  const router = useRouter();
+  const { publicKey, connected, connecting, connect: connectSolana, disconnect: disconnectSolana } = useSolanaWallet()
+  const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [showUsernameModal, setShowUsernameModal] = useState(false)
+  const [balance, setBalance] = useState(0)
 
-  // Check if user exists when wallet is connected
+  // Handle wallet connection
   useEffect(() => {
-    const checkUser = async () => {
-      if (!publicKey) {
-        setUser(null);
-        setLoading(false);
-        return;
-      }
+    const handleWalletConnection = async () => {
+      if (connected && publicKey) {
+        try {
+          setLoading(true)
+          const walletAddress = publicKey.toString()
 
-      setLoading(true);
-      const walletAddress = publicKey.toString();
+          // Get or create user from database
+          const { user: dbUser, isNew, error } = await getOrCreateUser(walletAddress)
 
-      // Check if user exists in database
-      const { data, error } = await supabase
-        .from("users")
-        .select("*")
-        .eq("wallet_address", walletAddress)
-        .single();
+          if (error) {
+            console.error("Error getting/creating user:", error)
+            return
+          }
 
-      if (error && error.code !== "PGRST116") {
-        console.error("Error fetching user:", error);
-      }
+          setUser(dbUser)
 
-      if (data) {
-        setUser(data);
-      } else {
-        // Create new user if not exists
-        const { data: newUser, error: createError } = await supabase
-          .from("users")
-          .insert([{ wallet_address: walletAddress }])
-          .select()
-          .single();
+          // If new user or no username, show username modal
+          if (isNew || (dbUser && !dbUser.username)) {
+            setShowUsernameModal(true)
+          }
 
-        if (createError) {
-          console.error("Error creating user:", createError);
-        } else if (newUser) {
-          setUser(newUser);
+          // Mock balance for now
+          setBalance(250)
+        } catch (error) {
+          console.error("Error handling wallet connection:", error)
+        } finally {
+          setLoading(false)
         }
+      } else {
+        setUser(null)
+        setLoading(false)
       }
-
-      setLoading(false);
-    };
-
-    if (connected && publicKey) {
-      checkUser();
-    } else {
-      setUser(null);
-      setLoading(false);
-    }
-  }, [publicKey, connected]);
-
-  // Check if username is set
-  const checkUsername = async (): Promise<boolean> => {
-    if (!user) return false;
-    return !!user.username;
-  };
-
-  // Set username for new user
-  const setUsername = async (
-    username: string
-  ): Promise<{ success: boolean; error?: string }> => {
-    if (!user) return { success: false, error: "Not connected" };
-
-    const { data, error } = await supabase
-      .from("users")
-      .update({ username })
-      .eq("id", user.id)
-      .select()
-      .single();
-
-    if (error) {
-      if (error.code === "23505") {
-        return { success: false, error: "Username already taken" };
-      }
-      return { success: false, error: error.message };
     }
 
-    if (data) {
-      setUser(data);
-      return { success: true };
+    handleWalletConnection()
+  }, [connected, publicKey])
+
+  const connect = async () => {
+    try {
+      await connectSolana()
+    } catch (error) {
+      console.error("Error connecting wallet:", error)
+    }
+  }
+
+  const disconnect = () => {
+    disconnectSolana()
+    setUser(null)
+  }
+
+  const handleSetUsername = async (username: string): Promise<{ success: boolean; error: string | null }> => {
+    if (!user) {
+      return { success: false, error: "User not found" }
     }
 
-    return { success: false, error: "Unknown error" };
-  };
+    const result = await updateUsername(user.id, username)
 
-  // Get user stats
-  const getUserStats = async () => {
-    if (!user) return null;
+    if (result.success) {
+      setUser((prev) => (prev ? { ...prev, username } : null))
+      setShowUsernameModal(false)
+    }
 
-    const { data: submissionsCount } = await supabase
-      .from("submissions")
-      .select("id", { count: "exact", head: true })
-      .eq("submitted_by", user.id);
-
-    const { data: winningSubmissions } = await supabase
-      .from("submissions")
-      .select("id", { count: "exact", head: true })
-      .eq("submitted_by", user.id)
-      .eq("is_winner", true);
-
-    const { data: votesCast } = await supabase
-      .from("votes")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", user.id);
-
-    const { data: storiesCreated } = await supabase
-      .from("stories")
-      .select("id", { count: "exact", head: true })
-      .eq("created_by", user.id);
-
-    return {
-      submissions_count: submissionsCount?.count || 0,
-      winning_submissions_count: winningSubmissions?.count || 0,
-      votes_cast_count: votesCast?.count || 0,
-      stories_created_count: storiesCreated?.count || 0,
-    };
-  };
+    return result
+  }
 
   return (
     <WalletContext.Provider
       value={{
+        connected,
+        connecting,
+        publicKey: publicKey?.toString() || null,
+        connect,
+        disconnect,
+        balance,
         user,
         loading,
-        checkUsername,
-        setUsername,
-        getUserStats,
+        setUsername: handleSetUsername,
       }}
     >
       {children}
+      {showUsernameModal && <UsernameModal isOpen={showUsernameModal} onClose={() => setShowUsernameModal(false)} />}
     </WalletContext.Provider>
-  );
+  )
 }
-
-export { WalletMultiButton };
