@@ -1,0 +1,96 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(uuid())
+  walletAddress String   @unique @map("wallet_address")
+  username      String?
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  createdStories Story[]         @relation("CreatedByUser")
+  submissions    Submission[]
+  sentences      StorySentence[]
+  votes          Vote[]
+
+  @@map("users")
+}
+
+model Story {
+  id                    String   @id @default(uuid())
+  title                 String
+  subtitle              String?
+  genre                 String
+  firstSentence         String   @map("first_sentence")
+  createdById           String   @map("created_by")
+  minSentences          Int      @default(10) @map("min_sentences")
+  votingPeriodDays      Int      @default(3) @map("voting_period_days")
+  submissionPeriodHours Int      @default(24) @map("submission_period_hours")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  creator     User            @relation("CreatedByUser", fields: [createdById], references: [id])
+  sentences   StorySentence[]
+  submissions Submission[]
+
+  @@map("stories")
+}
+
+model StorySentence {
+  id          String   @id @default(uuid())
+  storyId     String   @map("story_id")
+  content     String
+  position    Int
+  submittedBy String   @map("submitted_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relations
+  story  Story @relation(fields: [storyId], references: [id])
+  author User  @relation(fields: [submittedBy], references: [id])
+
+  @@unique([storyId, position])
+  @@map("story_sentences")
+}
+
+model Submission {
+  id          String   @id @default(uuid())
+  storyId     String   @map("story_id")
+  content     String
+  submittedBy String   @map("submitted_by")
+  votingRound Int      @map("voting_round")
+  isWinner    Boolean  @default(false) @map("is_winner")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relations
+  story  Story  @relation(fields: [storyId], references: [id])
+  author User   @relation(fields: [submittedBy], references: [id])
+  votes  Vote[]
+
+  @@map("submissions")
+}
+
+model Vote {
+  id           String   @id @default(uuid())
+  submissionId String   @map("submission_id")
+  userId       String   @map("user_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  // Relations
+  submission Submission @relation(fields: [submissionId], references: [id])
+  user       User       @relation(fields: [userId], references: [id])
+
+  // Each user can only vote once per submission
+  @@unique([submissionId, userId])
+  @@map("votes")
+}
