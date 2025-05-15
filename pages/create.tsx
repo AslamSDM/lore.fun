@@ -1,39 +1,38 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useRouter } from "next/router"
-import Link from "next/link"
-import { useWallet } from "../hooks/use-wallet"
+import { useState } from "react";
+import { useRouter } from "next/router";
+import Link from "next/link";
+import { useWallet } from "../hooks/use-wallet";
 
 export default function CreateStoryPage() {
-  const router = useRouter()
-  const { connected, connect, user } = useWallet()
-  const [title, setTitle] = useState("")
-  const [subtitle, setSubtitle] = useState("")
-  const [firstSentence, setFirstSentence] = useState("")
-  const [genre, setGenre] = useState("")
-  const [isCreating, setIsCreating] = useState(false)
-  const [error, setError] = useState("")
-
+  const router = useRouter();
+  const { connected, connect, user } = useWallet();
+  const [title, setTitle] = useState("");
+  const [subtitle, setSubtitle] = useState("");
+  const [firstSentence, setFirstSentence] = useState("");
+  const [genre, setGenre] = useState("");
+  const [isCreating, setIsCreating] = useState(false);
+  const [error, setError] = useState("");
+  console.log("connected", connected);
+  console.log("user", user);
   const handleCreate = async () => {
+    console.log(connected, user);
     if (!connected) {
-      connect()
-      return
-    }
-
-    if (!user) {
-      setError("Please connect your wallet to create a story")
-      return
+      // Clear any previous errors when initiating connection
+      setError("");
+      connect();
+      return;
     }
 
     if (!title || !firstSentence || !genre) {
-      setError("Please fill in all required fields.")
-      return
+      setError("Please fill in all required fields.");
+      return;
     }
 
     try {
-      setError("")
-      setIsCreating(true)
+      setError("");
+      setIsCreating(true);
 
       const response = await fetch("/api/stories", {
         method: "POST",
@@ -44,28 +43,31 @@ export default function CreateStoryPage() {
           title,
           subtitle,
           genre,
-          first_sentence: firstSentence,  // API still expects snake_case keys
-          created_by: user.id,            // Our middleware handles conversion to camelCase
+          first_sentence: firstSentence, // API still expects snake_case keys
+          created_by: "1", // Our middleware handles conversion to camelCase
         }),
-      })
+      });
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || "Failed to create story")
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to create story");
       }
 
-      const story = await response.json()
-      router.push(`/stories/${story.id}`)
+      const story = await response.json();
+      router.push(`/stories/${story.id}`);
     } catch (err) {
-      setError((err as Error).message || "Error creating story")
-      console.error(err)
-      setIsCreating(false)
+      setError((err as Error).message || "Error creating story");
+      console.error(err);
+      setIsCreating(false);
     }
-  }
+  };
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <Link href="/stories" className="flex items-center text-gray-400 hover:text-white mb-6">
+      <Link
+        href="/stories"
+        className="flex items-center text-gray-400 hover:text-white mb-6"
+      >
         <svg
           className="w-5 h-5 mr-2"
           fill="none"
@@ -73,7 +75,12 @@ export default function CreateStoryPage() {
           viewBox="0 0 24 24"
           xmlns="http://www.w3.org/2000/svg"
         >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M10 19l-7-7m0 0l7-7m-7 7h18"
+          />
         </svg>
         Back to Stories
       </Link>
@@ -172,11 +179,17 @@ export default function CreateStoryPage() {
         <button
           onClick={handleCreate}
           disabled={isCreating}
-          className={`btn-primary w-full mt-8 ${isCreating ? "opacity-50 cursor-not-allowed" : ""}`}
+          className={`btn-primary w-full mt-8 ${
+            isCreating ? "opacity-50 cursor-not-allowed" : ""
+          }`}
         >
-          {!connected ? "Connect Wallet to Create" : isCreating ? "Creating Story..." : "Create New Story"}
+          {!connected
+            ? "Connect Wallet to Create"
+            : isCreating
+            ? "Creating Story..."
+            : "Create New Story"}
         </button>
       </div>
     </div>
-  )
+  );
 }
