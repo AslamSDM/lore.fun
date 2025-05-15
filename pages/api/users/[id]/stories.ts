@@ -1,44 +1,61 @@
-import type { NextApiRequest, NextApiResponse } from "next"
-import { createServerSupabaseClient } from "../../../../lib/supabase"
+import type { NextApiRequest, NextApiResponse } from "next";
+import { withPrisma } from "../../../../lib/middleware";
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const supabase = createServerSupabaseClient()
-  const { id } = req.query
+export default withPrisma(async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse,
+  { prisma }
+) {
+  const { id } = req.query;
 
   if (req.method === "GET") {
-    // Get stories created by user
-    const { data, error } = await supabase
-      .from("stories")
-      .select(`
-        *,
-        sentences_count:story_sentences(count),
-        contributors_count:story_sentences(submitted_by)
-      `)
-      .eq("created_by", id)
-      .order("created_at", { ascending: false })
+    try {
+      // Get stories created by user with sentence counts
+      const stories = await prisma.story.findMany({
+        where: { createdById: id as string },
+        include: {
+          sentences: {
+            select: {
+              id: true,
+              submittedBy: true,
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      });
 
-    if (error) {
-      return res.status(500).json({ error: error.message })
+      // Process the data to get unique contributors count
+      const processedData = stories.map((story) => {
+        // Get unique contributors
+        const uniqueContributors = new Set<string>();
+        story.sentences.forEach((sentence) => {
+          uniqueContributors.add(sentence.submittedBy);
+        });
+
+        // Format response to match expected structure
+        return {
+          id: story.id,
+          title: story.title,
+          subtitle: story.subtitle,
+          genre: story.genre,
+          first_sentence: story.firstSentence,
+          created_by: story.createdById,
+          min_sentences: story.minSentences,
+          voting_period_days: story.votingPeriodDays,
+          submission_period_hours: story.submissionPeriodHours,
+          created_at: story.createdAt.toISOString(),
+          updated_at: story.updatedAt.toISOString(),
+          sentences_count: story.sentences.length,
+          contributors_count: uniqueContributors.size,
+        };
+      });
+
+      return res.status(200).json(processedData);
+    } catch (error) {
+      console.error("Error fetching user stories:", error);
+      return res.status(500).json({ error: (error as Error).message });
     }
-
-    // Process the data to get unique contributors count
-    const processedData = data.map((story) => {
-      const uniqueContributors = new Set()
-      if (story.contributors_count) {
-        story.contributors_count.forEach((item: any) => {
-          uniqueContributors.add(item.submitted_by)
-        })
-      }
-
-      return {
-        ...story,
-        sentences_count: story.sentences_count?.length || 0,
-        contributors_count: uniqueContributors.size,
-      }
-    })
-
-    return res.status(200).json(processedData)
   }
 
-  return res.status(405).json({ error: "Method not allowed" })
-}
+  return res.status(405).json({ error: "Method not allowed" });
+});

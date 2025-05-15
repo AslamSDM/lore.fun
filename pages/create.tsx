@@ -44,8 +44,8 @@ export default function CreateStoryPage() {
           title,
           subtitle,
           genre,
-          first_sentence: firstSentence,
-          created_by: user.id,
+          first_sentence: firstSentence,  // API still expects snake_case keys
+          created_by: user.id,            // Our middleware handles conversion to camelCase
         }),
       })
 

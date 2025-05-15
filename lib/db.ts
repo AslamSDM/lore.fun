@@ -1,50 +1,74 @@
 "use server";
 
-// Create a server-side client (for API routes)
-import { createServerClient } from "@supabase/ssr";
-import { NextApiRequest, NextApiResponse } from "next";
-import { serialize } from "cookie";
+import type { NextApiRequest, NextApiResponse } from "next";
+import { prisma } from "./prisma";
+
+// This file is kept for backwards compatibility
+// New code should import directly from lib/middleware.ts and lib/prisma.ts
 
 export const createServerSupabaseClient = async (
-  req: NextApiRequest,
-  res: NextApiResponse
+  req?: NextApiRequest,
+  res?: NextApiResponse
 ) => {
-  // const cookieStore = await cookies();
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get: (name) => req.cookies[name],
-        set: (name, value, options) => {
-          res.setHeader(
-            "Set-Cookie",
-            serialize(name, value, {
-              path: "/",
-              ...options,
-            })
+  console.warn(
+    "createServerSupabaseClient is deprecated. Use withPrisma middleware instead."
+  );
+  // Return a compatibility layer that wraps prisma
+  return {
+    // Add basic compatibility for simple queries
+    from: (table: string) => {
+      let model: any;
+
+      // Map table names to Prisma models
+      switch (table) {
+        case "users":
+          model = prisma.user;
+          break;
+        case "stories":
+          model = prisma.story;
+          break;
+        case "story_sentences":
+          model = prisma.storySentence;
+          break;
+        case "submissions":
+          model = prisma.submission;
+          break;
+        case "votes":
+          model = prisma.vote;
+          break;
+        default:
+          throw new Error(
+            `Table ${table} not supported in compatibility layer`
+          );
+      }
+
+      console.warn(
+        `Using Supabase compatibility layer for table ${table}. ` +
+          `Please update your code to use Prisma directly.`
+      );
+
+      return {
+        select: () => {
+          throw new Error(
+            "Supabase compatibility layer does not support complex queries. Please update your code to use Prisma directly."
           );
         },
-        /* getAll() {
-          return req.cookies
-            ? Object.entries(req.cookies).map(([name, value]) => ({
-                name,
-                value,
-              }))
-            : [];
+        insert: () => {
+          throw new Error(
+            "Supabase compatibility layer does not support complex queries. Please update your code to use Prisma directly."
+          );
         },
-        setAll(cookiesToSet: any) {
-          cookiesToSet.forEach(({ name, value, options }: any) => {
-            res.setHeader(
-              "Set-Cookie",
-              serialize(name, value, {
-                path: "/",
-                ...options,
-              })
-            );
-          });
-        }, */
-      },
-    }
-  );
+        update: () => {
+          throw new Error(
+            "Supabase compatibility layer does not support complex queries. Please update your code to use Prisma directly."
+          );
+        },
+        delete: () => {
+          throw new Error(
+            "Supabase compatibility layer does not support complex queries. Please update your code to use Prisma directly."
+          );
+        },
+      };
+    },
+  };
 };
