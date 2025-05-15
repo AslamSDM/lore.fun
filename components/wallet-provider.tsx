@@ -2,10 +2,13 @@
 
 import { createContext, useEffect, useState, type ReactNode } from "react";
 import { useWallet as useSolanaWallet } from "@solana/wallet-adapter-react";
-import { getOrCreateUser, updateUsername } from "../lib/solana";
+import { updateUsername } from "../lib/solana";
+import { generateSignMessage } from "../lib/auth";
 import type { User } from "../lib/types";
 import UsernameModal from "./username-modal";
+import SignMessageModal from "./sign-message-modal";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
+import { useAuthStore } from "../lib/auth-store";
 
 interface WalletContextType {
   connected: boolean;
@@ -39,32 +42,73 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [showUsernameModal, setShowUsernameModal] = useState(false);
+  const [showSignMessageModal, setShowSignMessageModal] = useState(false);
   const [balance, setBalance] = useState(0);
 
-  // Handle wallet connection
+  const {
+    isAuthenticating,
+    setIsAuthenticating,
+    authError,
+    setAuthError,
+    resetAuthState,
+  } = useAuthStore(); // Handle wallet connection
   useEffect(() => {
     const handleWalletConnection = async () => {
       if (solanaWallet.connected && solanaWallet.publicKey) {
         try {
           setLoading(true);
-          const walletAddress = solanaWallet.publicKey.toString();
+          resetAuthState();
 
-          // Get or create user from database
-          const {
-            user: dbUser,
-            isNew,
-            error,
-          } = await getOrCreateUser(walletAddress);
-
-          if (error) {
-            console.error("Error getting/creating user:", error);
-            return;
+          if (!solanaWallet.signMessage) {
+            throw new Error("Wallet doesn't support message signing");
           }
 
+          const walletAddress = solanaWallet.publicKey.toString();
+
+          // Show the sign message modal
+          setShowSignMessageModal(true);
+
+          // Create a message for the user to sign
+          const message = generateSignMessage(walletAddress);
+
+          // Begin authentication process
+          setIsAuthenticating(true);
+
+          // Ask the user to sign the message
+          const encodedMessage = new TextEncoder().encode(message);
+          const signature = await solanaWallet.signMessage(encodedMessage);
+
+          // Hide the modal once signature is completed
+          setShowSignMessageModal(false);
+
+          // Convert the signature to a string
+          const signatureString = Buffer.from(signature).toString("base64");
+
+          // Authenticate with the server
+          const response = await fetch("/api/auth/signin", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              walletAddress,
+              signature: signatureString,
+            }),
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || "Authentication failed");
+          }
+
+          const { user: dbUser, isNewUser } = await response.json();
           setUser(dbUser);
 
+          // Reset auth state
+          resetAuthState();
+
           // If new user or no username, show username modal
-          if (isNew || (dbUser && !dbUser.username)) {
+          if (!dbUser.username) {
             setShowUsernameModal(true);
           }
 
@@ -72,8 +116,11 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           setBalance(250);
         } catch (error) {
           console.error("Error handling wallet connection:", error);
+          setAuthError((error as Error).message);
+          setShowSignMessageModal(false);
         } finally {
           setLoading(false);
+          setIsAuthenticating(false);
         }
       } else {
         setUser(null);
@@ -82,13 +129,20 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     };
 
     handleWalletConnection();
-  }, [solanaWallet.connected, solanaWallet.publicKey]);
+  }, [
+    solanaWallet.connected,
+    solanaWallet.publicKey,
+    solanaWallet.signMessage,
+  ]);
 
   const connect = async () => {
     try {
+      // Reset any previous auth state
+      resetAuthState();
       setVisible(true);
     } catch (error) {
       console.error("Error connecting wallet:", error);
+      setAuthError((error as Error).message);
     }
   };
 
@@ -97,6 +151,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       solanaWallet.disconnect();
     }
     setUser(null);
+    resetAuthState();
   };
 
   const handleSetUsername = async (
@@ -135,6 +190,13 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         <UsernameModal
           isOpen={showUsernameModal}
           onClose={() => setShowUsernameModal(false)}
+        />
+      )}
+      {showSignMessageModal && solanaWallet.publicKey && (
+        <SignMessageModal
+          isOpen={showSignMessageModal}
+          onClose={() => setShowSignMessageModal(false)}
+          walletAddress={solanaWallet.publicKey.toString()}
         />
       )}
     </WalletContext.Provider>

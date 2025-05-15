@@ -1,11 +1,12 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { withPrisma } from "../../../lib/middleware";
+import { withPrisma, withAuth } from "../../../lib/middleware";
 import { StoryService } from "../../../lib/data-service";
 
-export default withPrisma(async function handler(
+// Public endpoint for GET, authenticated for POST
+const handler = async function (
   req: NextApiRequest,
   res: NextApiResponse,
-  { prisma }
+  { prisma, user }: { prisma: any; user?: any }
 ) {
   if (req.method === "GET") {
     try {
@@ -105,4 +106,15 @@ export default withPrisma(async function handler(
   }
 
   return res.status(405).json({ error: "Method not allowed" });
-});
+};
+
+// Export with different middleware based on request method
+export default async function (req: NextApiRequest, res: NextApiResponse) {
+  // For POST requests, use withAuth to require authentication
+  if (req.method === "POST") {
+    return withAuth(handler)(req, res);
+  }
+
+  // For all other requests, just use withPrisma
+  return withPrisma(handler)(req, res);
+}
