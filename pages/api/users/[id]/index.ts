@@ -1,7 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { runPrismaInApi } from "../../../../lib/api-helpers";
+import { authenticate } from "@/lib/jwt";
 
-export default async function handler(
+export default authenticate(async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
@@ -88,4 +89,4 @@ export default async function handler(
   }
 
   return res.status(405).json({ error: "Method not allowed" });
-}
+});
