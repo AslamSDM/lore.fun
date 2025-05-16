@@ -11,11 +11,14 @@ if (!process.env.DATABASE_URL) {
   console.warn("DATABASE_URL environment variable is not set or empty.");
 }
 
-// Function to create the PrismaClient with proper error handling
+// Function to create the PrismaClient with proper error handling and performance optimizations
 function createPrismaClient() {
   try {
+    const isProd = process.env.NODE_ENV === "production";
+
     return new PrismaClient({
-      log: ["query", "error", "warn"],
+      log: isProd ? ["error", "warn"] : ["query", "error", "warn"],
+      // Only log errors and warnings in production for better performance
     });
   } catch (error) {
     console.error("Failed to create PrismaClient:", error);

@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { runPrismaInApi } from "../../../lib/api-helpers";
+import { runPrismaTransaction } from "../../../lib/api-helpers";
 
 export default async function handler(
   req: NextApiRequest,
@@ -8,44 +8,50 @@ export default async function handler(
   const { id } = req.query;
 
   if (req.method === "GET") {
-    return runPrismaInApi(req, res, async (prisma) => {
+    return runPrismaTransaction(req, res, async (tx) => {
       try {
-        // Get story details with creator
-        const story = await prisma.story.findUnique({
-          where: { id: id as string },
-          include: {
-            creator: {
-              select: {
-                id: true,
-                username: true,
+        // Start a timer to measure query performance
+        const startTime = performance.now();
+
+        // First get story and sentences to determine the current round
+        const [story, sentences] = await Promise.all([
+          // Get story details with creator
+          tx.story.findUnique({
+            where: { id: id as string },
+            include: {
+              creator: {
+                select: {
+                  id: true,
+                  username: true,
+                },
               },
             },
-          },
-        });
+          }),
+
+          // Get story sentences with authors in one query
+          tx.storySentence.findMany({
+            where: { storyId: id as string },
+            orderBy: { position: "asc" },
+            include: {
+              author: {
+                select: {
+                  id: true,
+                  username: true,
+                },
+              },
+            },
+          }),
+        ]);
 
         if (!story) {
           return res.status(404).json({ error: "Story not found" });
         }
 
-        // Get story sentences with authors
-        const sentences = await prisma.storySentence.findMany({
-          where: { storyId: id as string },
-          orderBy: { position: "asc" },
-          include: {
-            author: {
-              select: {
-                id: true,
-                username: true,
-              },
-            },
-          },
-        });
-
-        // Get the current voting round - next position after last sentence
+        // Calculate current voting round before querying submissions
         const currentRoundPosition = sentences.length + 1;
 
-        // Get submissions for the current round
-        const submissions = await prisma.submission.findMany({
+        // Get submissions with votes and efficient vote counting
+        const submissionsWithVotes = await tx.submission.findMany({
           where: {
             storyId: id as string,
             votingRound: currentRoundPosition,
@@ -57,18 +63,21 @@ export default async function handler(
                 username: true,
               },
             },
-            votes: true,
+            votes: true, // Need the actual votes for detailed processing
+            _count: {
+              select: { votes: true }, // Also get efficient count
+            },
           },
         });
 
         // Count total votes for this round
-        const totalVotes = submissions.reduce(
+        const totalVotes = submissionsWithVotes.reduce(
           (sum, sub) => sum + sub.votes.length,
           0
         );
 
         // Calculate percentage for each submission
-        const processedSubmissions = submissions.map((sub) => {
+        const processedSubmissions = submissionsWithVotes.map((sub) => {
           const votesCount = sub.votes.length;
           const percentage =
             totalVotes > 0 ? Math.round((votesCount / totalVotes) * 100) : 0;
@@ -113,6 +122,18 @@ export default async function handler(
           updated_at: story.updatedAt.toISOString(),
           creator: story.creator,
         };
+
+        // Log performance metrics in development
+        if (process.env.NODE_ENV !== "production") {
+          const executionTime = performance.now() - startTime;
+          if (executionTime > 100) {
+            console.warn(
+              `SLOW ENDPOINT: GET /api/stories/${id} took ${executionTime.toFixed(
+                2
+              )}ms`
+            );
+          }
+        }
 
         // Return formatted data
         return res.status(200).json({

@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, Prisma } from "@prisma/client";
 import { prisma } from "./prisma";
 
 export class UserService {
@@ -229,97 +229,159 @@ export class SubmissionService {
 }
 
 export class VoteService {
-  // Cast a vote
+  // Cast a vote - optimized with transaction
   static async castVote(submissionId: string, userId: string) {
-    // Check if user has already voted for a submission in this round
-    const submission = await prisma.submission.findUnique({
-      where: { id: submissionId },
-    });
+    const startTime = performance.now();
 
-    if (!submission) {
-      return { success: false, error: "Submission not found" };
-    }
+    try {
+      // Use transaction for atomicity and better performance
+      return await prisma.$transaction(
+        async (tx) => {
+          // Check if submission exists
+          const submission = await tx.submission.findUnique({
+            where: { id: submissionId },
+            select: { id: true, storyId: true, votingRound: true }, // Optimize by selecting only needed fields
+          });
 
-    // Check if user has already voted in this round
-    const existingVote = await prisma.vote.findFirst({
-      where: {
-        userId,
-        submission: {
-          storyId: submission.storyId,
-          votingRound: submission.votingRound,
+          if (!submission) {
+            return { success: false, error: "Submission not found" };
+          }
+
+          // Check if user has already voted in this round using an optimized query
+          const existingVote = await tx.vote.findFirst({
+            where: {
+              userId,
+              submission: {
+                storyId: submission.storyId,
+                votingRound: submission.votingRound,
+              },
+            },
+            select: { id: true, submissionId: true }, // Only select needed fields
+          });
+
+          let action;
+          if (existingVote) {
+            // If voted for the same submission, remove the vote
+            if (existingVote.submissionId === submissionId) {
+              await tx.vote.delete({ where: { id: existingVote.id } });
+              action = "removed";
+            } else {
+              // If voted for a different submission, update the vote
+              await tx.vote.update({
+                where: { id: existingVote.id },
+                data: { submissionId },
+              });
+              action = "changed";
+            }
+          } else {
+            // Create a new vote
+            await tx.vote.create({
+              data: {
+                submissionId,
+                userId,
+              },
+            });
+            action = "added";
+          }
+
+          return { success: true, action };
         },
-      },
-    });
-
-    if (existingVote) {
-      // If voted for the same submission, remove the vote
-      if (existingVote.submissionId === submissionId) {
-        await prisma.vote.delete({ where: { id: existingVote.id } });
-        return { success: true, action: "removed" };
+        {
+          // Configure transaction settings
+          timeout: 10000, // 10 seconds
+          isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,
+        }
+      );
+    } catch (error) {
+      console.error("Error in castVote:", error);
+      return { success: false, error: (error as Error).message };
+    } finally {
+      // Log performance for slow operations
+      if (process.env.NODE_ENV !== "production") {
+        const executionTime = performance.now() - startTime;
+        if (executionTime > 100) {
+          console.warn(
+            `SLOW OPERATION: castVote took ${executionTime.toFixed(2)}ms`
+          );
+        }
       }
-
-      // If voted for a different submission, update the vote
-      await prisma.vote.update({
-        where: { id: existingVote.id },
-        data: { submissionId },
-      });
-
-      return { success: true, action: "changed" };
     }
-
-    // Create a new vote
-    await prisma.vote.create({
-      data: {
-        submissionId,
-        userId,
-      },
-    });
-
-    return { success: true, action: "added" };
   }
 }
 
 export class SentenceService {
-  // Add a winning submission as the next sentence
+  // Add a winning submission as the next sentence using transaction for atomicity and performance
   static async addWinningSubmissionAsSentence(submissionId: string) {
-    const submission = await prisma.submission.findUnique({
-      where: { id: submissionId },
-      include: {
-        story: {
-          include: {
-            sentences: {
-              orderBy: { position: "desc" },
-              take: 1,
+    // Start a performance timer
+    const startTime = performance.now();
+
+    try {
+      // Use a transaction for atomicity and better performance
+      return await prisma.$transaction(
+        async (tx) => {
+          // Get submission with story data in a single query
+          const submission = await tx.submission.findUnique({
+            where: { id: submissionId },
+            include: {
+              story: {
+                include: {
+                  sentences: {
+                    orderBy: { position: "desc" },
+                    take: 1,
+                  },
+                },
+              },
             },
-          },
+          });
+
+          if (!submission) {
+            return { success: false, error: "Submission not found" };
+          }
+
+          const nextPosition =
+            submission.story.sentences.length > 0
+              ? submission.story.sentences[0].position + 1
+              : 1;
+
+          // Create new sentence and mark submission as winner in a single transaction
+          const sentence = await tx.storySentence.create({
+            data: {
+              storyId: submission.storyId,
+              content: submission.content,
+              position: nextPosition,
+              submittedBy: submission.submittedBy,
+            },
+          });
+
+          // Mark submission as winner in the same transaction
+          await tx.submission.update({
+            where: { id: submissionId },
+            data: { isWinner: true },
+          });
+
+          return { success: true, sentence };
         },
-      },
-    });
-
-    if (!submission) {
-      return { success: false, error: "Submission not found" };
+        {
+          // Set reasonable timeout and isolation level
+          timeout: 10000, // 10 seconds
+          isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,
+        }
+      );
+    } catch (error) {
+      console.error("Error in addWinningSubmissionAsSentence:", error);
+      return { success: false, error: (error as Error).message };
+    } finally {
+      // Log performance in development
+      if (process.env.NODE_ENV !== "production") {
+        const executionTime = performance.now() - startTime;
+        if (executionTime > 100) {
+          console.warn(
+            `SLOW OPERATION: addWinningSubmissionAsSentence took ${executionTime.toFixed(
+              2
+            )}ms`
+          );
+        }
+      }
     }
-
-    const nextPosition =
-      submission.story.sentences.length > 0
-        ? submission.story.sentences[0].position + 1
-        : 1;
-
-    const sentence = await prisma.storySentence.create({
-      data: {
-        storyId: submission.storyId,
-        content: submission.content,
-        position: nextPosition,
-        submittedBy: submission.submittedBy,
-      },
-    });
-
-    // Mark submission as winner
-    await prisma.submission.update({
-      where: { id: submissionId },
-      data: { isWinner: true },
-    });
-
-    return { success: true, sentence };
   }
 }

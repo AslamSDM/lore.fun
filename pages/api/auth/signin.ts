@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { runPrismaInApi } from "../../../lib/api-helpers";
 import { generateSignMessage, verifySignature } from "../../../lib/auth";
+import { generateJWT } from "@/lib/jwt";
 
 export default async function handler(
   req: NextApiRequest,
@@ -60,6 +61,16 @@ export default async function handler(
 
         // Set headers for browser to know this is an authenticated response
         res.setHeader("Cache-Control", "no-store");
+        const token = generateJWT(user.id, walletAddress);
+        // Set HTTP-only cookie
+        res.setHeader("Set-Cookie", [
+          `token=${token}; ` +
+            `Path=/; ` +
+            `HttpOnly; ` +
+            `Secure=${process.env.NODE_ENV === "production"}; ` +
+            `SameSite=Lax; ` +
+            `Max-Age=${365 * 24 * 60 * 60}`, // 365 days in seconds
+        ]);
 
         return res.status(200).json({
           authenticated: true,

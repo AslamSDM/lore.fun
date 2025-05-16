@@ -1,21 +1,24 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { runPrismaInApi } from "../../../lib/api-helpers";
+import { runPrismaInApi, runPrismaTransaction } from "../../../lib/api-helpers";
 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
   if (req.method === "POST") {
-    return runPrismaInApi(req, res, async (prisma) => {
+    return runPrismaTransaction(req, res, async (tx) => {
       const { story_id, content, submitted_by } = req.body;
 
       if (!story_id || !content || !submitted_by) {
         return res.status(400).json({ error: "Missing required fields" });
       }
 
+      // Start performance timer
+      const startTime = performance.now();
+
       try {
-        // Get the story with sentences to check round status
-        const story = await prisma.story.findUnique({
+        // Get the story with sentences to check round status using transaction
+        const story = await tx.story.findUnique({
           where: { id: story_id },
           include: {
             sentences: {
@@ -56,7 +59,7 @@ export default async function handler(
 
         // Check if this is the first submission for this round
         // If it is, note this as it may trigger a voting period start
-        const existingSubmissionCount = await prisma.submission.count({
+        const existingSubmissionCount = await tx.submission.count({
           where: {
             storyId: story_id,
             votingRound: currentRound,
@@ -65,8 +68,8 @@ export default async function handler(
 
         const isFirstSubmission = existingSubmissionCount === 0;
 
-        // Create the submission
-        const submission = await prisma.submission.create({
+        // Create the submission using the transaction
+        const submission = await tx.submission.create({
           data: {
             storyId: story_id,
             content,
@@ -94,6 +97,18 @@ export default async function handler(
           created_at: submission.createdAt.toISOString(),
           author: submission.author,
         };
+
+        // Log performance metrics in development mode
+        if (process.env.NODE_ENV !== "production") {
+          const executionTime = performance.now() - startTime;
+          if (executionTime > 100) {
+            console.warn(
+              `SLOW OPERATION: Submission creation took ${executionTime.toFixed(
+                2
+              )}ms`
+            );
+          }
+        }
 
         // Add additional information if this is the first submission
         return res.status(201).json({

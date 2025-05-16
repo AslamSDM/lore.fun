@@ -25,7 +25,6 @@ interface WalletContextType {
   ) => Promise<{ success: boolean; error: string | null }>;
   refreshUser: () => Promise<void>;
 }
-
 export const WalletContext = createContext<WalletContextType>({
   connected: false,
   connecting: false,
@@ -37,7 +36,8 @@ export const WalletContext = createContext<WalletContextType>({
   user: null,
   loading: true,
   setUsername: async () => ({ success: false, error: null }),
-  refreshUser: async () => {},
+  refreshUser: async () => {}, // Add this
+  updateBalance: () => {}, // Add this
 });
 
 export function WalletProvider({ children }: { children: ReactNode }) {
@@ -80,8 +80,19 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
           // Ask the user to sign the message
           const encodedMessage = new TextEncoder().encode(message);
-          const signature = await solanaWallet.signMessage(encodedMessage);
+          let signature;
 
+          try {
+            const encodedMessage = new TextEncoder().encode(message);
+            signature = await solanaWallet.signMessage(encodedMessage);
+          } catch (signError) {
+            // Specific handling for user rejection
+
+            setShowSignMessageModal(false);
+            setAuthError("User rejected signature");
+
+            return;
+          }
           // Hide the modal once signature is completed
           setShowSignMessageModal(false);
 

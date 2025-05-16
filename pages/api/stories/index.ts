@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { StoryService, UserService } from "../../../lib/data-service";
-import { runPrismaInApi } from "../../../lib/api-helpers";
+import { runPrismaInApi, runPrismaTransaction } from "../../../lib/api-helpers";
 import { randomUUID } from "crypto";
 
 export default async function handler(
@@ -8,15 +8,20 @@ export default async function handler(
   res: NextApiResponse
 ) {
   if (req.method === "GET") {
-    return runPrismaInApi(req, res, async (prisma) => {
+    return runPrismaTransaction(req, res, async (tx) => {
       try {
-        // Get all stories with related data
-        const stories = await prisma.story.findMany({
+        // Get all stories with related data using optimized queries
+        const stories = await tx.story.findMany({
           include: {
             creator: {
               select: {
                 id: true,
                 username: true,
+              },
+            },
+            _count: {
+              select: {
+                sentences: true, // Count sentences efficiently
               },
             },
             sentences: {
@@ -25,19 +30,13 @@ export default async function handler(
                 submittedBy: true,
               },
             },
-            submissions: {
-              distinct: ["submittedBy"],
-              select: {
-                submittedBy: true,
-              },
-            },
           },
           orderBy: { createdAt: "desc" },
         });
 
-        // Process stories to get the expected format
+        // Process stories to get the expected format with better performance
         const processedData = stories.map((story) => {
-          // Get unique contributors
+          // Get unique contributors more efficiently
           const uniqueContributors = new Set<string>();
           story.sentences.forEach((sentence) => {
             uniqueContributors.add(sentence.submittedBy);
@@ -57,7 +56,7 @@ export default async function handler(
             created_at: story.createdAt.toISOString(),
             updated_at: story.updatedAt.toISOString(),
             creator: story.creator,
-            sentences_count: story.sentences.length,
+            sentences_count: story._count.sentences, // Use the more efficient count
             contributors_count: uniqueContributors.size,
           };
         });
@@ -71,12 +70,15 @@ export default async function handler(
   }
 
   if (req.method === "POST") {
-    return runPrismaInApi(req, res, async (prisma) => {
+    return runPrismaTransaction(req, res, async (tx) => {
       const { title, subtitle, genre, first_sentence, created_by } = req.body;
 
       if (!title || !genre || !first_sentence || !created_by) {
         return res.status(400).json({ error: "Missing required fields" });
       }
+
+      // Start performance measurement
+      const startTime = performance.now();
 
       // Ensure user exists before creating story
       let userId = created_by;
@@ -91,9 +93,10 @@ export default async function handler(
             `Processing wallet address: ${created_by.substring(0, 10)}...`
           );
 
-          // Check if user exists
-          const existingUser = await prisma.user.findUnique({
+          // Check if user exists using the transaction client
+          const existingUser = await tx.user.findUnique({
             where: { walletAddress: created_by },
+            select: { id: true }, // Only select what's needed for better performance
           });
 
           if (existingUser) {
@@ -104,7 +107,7 @@ export default async function handler(
             console.log(
               `Creating new user for wallet: ${created_by.substring(0, 10)}...`
             );
-            const newUser = await prisma.user.create({
+            const newUser = await tx.user.create({
               data: {
                 id: randomUUID(),
                 walletAddress: created_by,
@@ -124,15 +127,15 @@ export default async function handler(
       }
 
       try {
-        // Create the story directly with Prisma
-        const story = await prisma.story.create({
+        // Create the story using transaction
+        const story = await tx.story.create({
           data: {
             title,
             subtitle: subtitle || undefined,
             genre,
             firstSentence: first_sentence,
             createdById: userId,
-            // Add the first sentence as well
+            // Add the first sentence as well in a single atomic operation
             sentences: {
               create: {
                 content: first_sentence,
@@ -161,6 +164,18 @@ export default async function handler(
           updated_at: story.updatedAt.toISOString(),
           creator: story.creator,
         };
+
+        // Log performance in development mode
+        if (process.env.NODE_ENV !== "production") {
+          const executionTime = performance.now() - startTime;
+          if (executionTime > 100) {
+            console.warn(
+              `SLOW OPERATION: Story creation took ${executionTime.toFixed(
+                2
+              )}ms`
+            );
+          }
+        }
 
         return res.status(201).json(formattedStory);
       } catch (error) {

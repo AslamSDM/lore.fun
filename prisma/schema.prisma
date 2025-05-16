@@ -23,6 +23,7 @@ model User {
   sentences      StorySentence[]
   votes          Vote[]
 
+  @@index([username])
   @@map("users")
 }
 
@@ -44,6 +45,8 @@ model Story {
   sentences   StorySentence[]
   submissions Submission[]
 
+  @@index([createdById])
+  @@index([createdAt])
   @@map("stories")
 }
 
@@ -60,6 +63,8 @@ model StorySentence {
   author User  @relation(fields: [submittedBy], references: [id])
 
   @@unique([storyId, position])
+  @@index([storyId, createdAt])
+  @@index([submittedBy])
   @@map("story_sentences")
 }
 
@@ -77,6 +82,9 @@ model Submission {
   author User   @relation(fields: [submittedBy], references: [id])
   votes  Vote[]
 
+  @@index([storyId, votingRound]) // For faster queries on submissions for specific voting rounds
+  @@index([submittedBy])
+  @@index([isWinner])
   @@map("submissions")
 }
 
@@ -92,5 +100,7 @@ model Vote {
 
   // Each user can only vote once per submission
   @@unique([submissionId, userId])
+  @@index([userId])
+  @@index([submissionId])
   @@map("votes")
 }
