@@ -46,7 +46,9 @@ export default function VotePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [voteSuccess, setVoteSuccess] = useState(false);  useEffect(() => {
+  const [voteSuccess, setVoteSuccess] = useState(false);
+
+  useEffect(() => {
     const fetchStory = async () => {
       if (!id) return;
 
@@ -56,7 +58,7 @@ export default function VotePage() {
         // Use the StoriesAPI client helper to fetch the story
         const data = (await StoriesAPI.getById(id as string)) as StoryData;
         setStoryData(data);
-        
+
         // Check if the user has already voted in this round
         if (user) {
           try {
@@ -65,9 +67,9 @@ export default function VotePage() {
               user_id: user.id,
               round: data.current_round.position,
             });
-            
+
             setHasVoted(voteCheck.hasVoted);
-            
+
             if (voteCheck.hasVoted && voteCheck.votes.length > 0) {
               // Set the previously voted submission
               setSelectedSubmission(voteCheck.votes[0].submission.id);
@@ -534,7 +536,9 @@ export default function VotePage() {
                         d="M5 13l4 4L19 7"
                       ></path>
                     </svg>
-                    {selectedSubmission ? "You've Already Voted" : "Vote Submitted!"}
+                    {selectedSubmission
+                      ? "You've Already Voted"
+                      : "Vote Submitted!"}
                   </>
                 ) : (
                   <>
@@ -563,3 +567,142 @@ export default function VotePage() {
     </div>
   );
 }
+
+// Add getServerSideProps at the end of the file
+export const getServerSideProps = async (context) => {
+  const { id } = context.params as { id: string };
+
+  // Enable caching for 15 seconds on this page (shorter because voting can change quickly)
+  context.res.setHeader(
+    "Cache-Control",
+    "public, s-maxage=15, stale-while-revalidate=30"
+  );
+
+  try {
+    // Fetch story directly from the database for SSR
+    const story = await prisma.story.findUnique({
+      where: { id },
+      include: {
+        creator: {
+          select: {
+            id: true,
+            username: true,
+          },
+        },
+      },
+    });
+
+    if (!story) {
+      return {
+        notFound: true, // This will show the 404 page
+      };
+    }
+
+    // Fetch all sentences for the story
+    const sentences = await prisma.sentence.findMany({
+      where: {
+        storyId: id,
+      },
+      include: {
+        author: {
+          select: {
+            id: true,
+            username: true,
+          },
+        },
+      },
+      orderBy: {
+        position: "asc",
+      },
+    });
+
+    // Calculate current voting round
+    const currentRoundPosition = sentences.length + 1;
+
+    // Get submissions for current round
+    const submissions = await prisma.submission.findMany({
+      where: {
+        storyId: id,
+        votingRound: currentRoundPosition,
+      },
+      include: {
+        author: {
+          select: {
+            id: true,
+            username: true,
+          },
+        },
+        votes: true,
+      },
+    });
+
+    // Calculate total votes and vote percentages
+    const totalVotes = submissions.reduce(
+      (sum, submission) => sum + submission.votes.length,
+      0
+    );
+
+    // Format the submissions with vote percentages
+    const formattedSubmissions = submissions.map((submission) => {
+      const votesCount = submission.votes.length;
+      const percentage =
+        totalVotes > 0 ? Math.round((votesCount / totalVotes) * 100) : 0;
+
+      return {
+        id: submission.id,
+        content: submission.content,
+        author: submission.author,
+        votes_count: votesCount,
+        percentage,
+      };
+    });
+
+    // Format the response data to match what the client expects
+    const formattedStory = {
+      id: story.id,
+      title: story.title,
+      subtitle: story.subtitle,
+      genre: story.genre,
+      first_sentence: story.firstSentence,
+      created_by: story.createdById,
+      min_sentences: story.minSentences,
+      voting_period_days: story.votingPeriodDays,
+      submission_period_hours: story.submissionPeriodHours,
+      created_at: story.createdAt.toISOString(),
+      updated_at: story.updatedAt.toISOString(),
+      creator: story.creator,
+    };
+
+    const formattedSentences = sentences.map((sentence) => ({
+      id: sentence.id,
+      story_id: sentence.storyId,
+      content: sentence.content,
+      position: sentence.position,
+      submitted_by: sentence.submittedBy,
+      created_at: sentence.createdAt.toISOString(),
+      author: sentence.author,
+    }));
+
+    // Return the pre-fetched data as props
+    return {
+      props: {
+        initialStoryData: {
+          story: formattedStory,
+          sentences: formattedSentences,
+          current_round: {
+            position: currentRoundPosition,
+            submissions: formattedSubmissions,
+            total_votes: totalVotes,
+          },
+        },
+      },
+    };
+  } catch (error) {
+    console.error("Error in getServerSideProps:", error);
+    return {
+      props: {
+        initialError: "Error loading story data",
+      },
+    };
+  }
+};

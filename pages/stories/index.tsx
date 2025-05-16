@@ -131,10 +131,10 @@ export default function StoriesPage({
 export const getServerSideProps: GetServerSideProps = async (context) => {
   // Enable caching for 60 seconds on this page
   context.res.setHeader(
-    'Cache-Control',
-    'public, s-maxage=60, stale-while-revalidate=120'
+    "Cache-Control",
+    "public, s-maxage=60, stale-while-revalidate=120"
   );
-  
+
   try {
     // Get all stories with related data using optimized queries
     const stories = await prisma.story.findMany({

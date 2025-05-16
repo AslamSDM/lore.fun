@@ -9,14 +9,14 @@ export default async function handler(
     return runPrismaInApi(req, res, async (prisma) => {
       // Get query params
       const { user_id, story_id, round } = req.query;
-      
+
       // Validate required parameters
       if (!user_id || !story_id) {
         return res.status(400).json({ error: "Missing required parameters" });
       }
 
       const roundNumber = round ? parseInt(round as string) : undefined;
-      
+
       try {
         // Find any votes by this user for this story in the specified round
         const votes = await prisma.vote.findMany({
@@ -37,9 +37,9 @@ export default async function handler(
             },
           },
         });
-        
+
         const hasVoted = votes.length > 0;
-        
+
         return res.status(200).json({
           hasVoted,
           votes,

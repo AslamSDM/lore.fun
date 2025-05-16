@@ -333,11 +333,11 @@ export default function StoryPage({
 // Server Side Props to pre-fetch data
 export const getServerSideProps: GetServerSideProps = async (context) => {
   const { id } = context.params as { id: string };
-  
+
   // Enable caching for 30 seconds on this page
   context.res.setHeader(
-    'Cache-Control',
-    'public, s-maxage=30, stale-while-revalidate=60'
+    "Cache-Control",
+    "public, s-maxage=30, stale-while-revalidate=60"
   );
 
   try {

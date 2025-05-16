@@ -473,11 +473,11 @@ export default function SubmitPage({
 // Server Side Props to pre-fetch data
 export const getServerSideProps: GetServerSideProps = async (context) => {
   const { id } = context.params as { id: string };
-  
+
   // Enable caching for 20 seconds on this page
   context.res.setHeader(
-    'Cache-Control',
-    'public, s-maxage=20, stale-while-revalidate=60'
+    "Cache-Control",
+    "public, s-maxage=20, stale-while-revalidate=60"
   );
 
   try {
