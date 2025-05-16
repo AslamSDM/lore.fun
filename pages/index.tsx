@@ -8,6 +8,13 @@ import { useWallet } from "../hooks/use-wallet";
 export default function Home() {
   const { connect, connected } = useWallet();
 
+  const featuredStory = {
+    title: "The Great Adventure",
+    author: "Mystic Wizard",
+    description: "A thrilling journey through the enchanted forest.",
+    id: "story-1",
+  };
+
   return (
     <div>
       {/* Hero Section */}
@@ -20,11 +27,14 @@ export default function Home() {
               </h1>
               <p className="text-xl text-gray-300 mb-8">
                 Join the first decentralized story production. Submit
-                storylines, vote on the best content, and help create a
-                $LORE-themed story.
+                storylines, vote on the best content, and join the creators of
+                the story.
               </p>
               <div className="flex flex-wrap gap-4">
-                <Link href="/stories" className="btn-primary">
+                <Link
+                  href={`/stories/${featuredStory.id}`}
+                  className="btn-primary"
+                >
                   Read Current Story
                 </Link>
                 {!connected && (
@@ -36,8 +46,10 @@ export default function Home() {
             </div>
 
             <div className="card">
-              <h2 className="text-2xl font-bold mb-2">Current Progress</h2>
-              <p className="text-gray-400 mb-6">The $LORE story is evolving</p>
+              <h2 className="text-2xl font-bold mb-2">
+                Featured Story - {featuredStory.title}
+              </h2>
+              <p className="text-gray-400 mb-6">{featuredStory.description}</p>
 
               <div className="space-y-6">
                 <div>
@@ -149,7 +161,7 @@ export default function Home() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <div className="card">
-              <h3 className="text-xl font-bold mb-4">1. Connect Wallet</h3>
+              <h3 className="text-xl font-bold mb-4">1. Connect Wallet </h3>
               <p className="text-gray-300">
                 Hold $LORE tokens to participate in the storytelling process
               </p>

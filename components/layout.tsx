@@ -1,10 +1,10 @@
-import type React from "react"
-import Head from "next/head"
-import Navbar from "./navbar"
-import Footer from "./footer"
+import type React from "react";
+import Head from "next/head";
+import Navbar from "./navbar";
+import Footer from "./footer";
 
 interface LayoutProps {
-  children: React.ReactNode
+  children: React.ReactNode;
 }
 
 export default function Layout({ children }: LayoutProps) {
@@ -24,5 +24,5 @@ export default function Layout({ children }: LayoutProps) {
         <Footer />
       </div>
     </>
-  )
+  );
 }
