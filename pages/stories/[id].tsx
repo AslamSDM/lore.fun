@@ -6,6 +6,7 @@ import Link from "next/link";
 import type { Story, StorySentence, Submission } from "../../lib/types";
 import { useWallet } from "../../hooks/use-wallet";
 import { StoriesAPI } from "../../lib/api-client";
+import RoundStatus from "../../components/stories/RoundStatus";
 
 interface StoryData {
   story: Story;
@@ -24,27 +25,61 @@ export default function StoryPage() {
   const [storyData, setStoryData] = useState<StoryData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchStory = async () => {
+    if (!id) return;
+
+    try {
+      if (!refreshing) setLoading(true);
+
+      // Use our API client to fetch the story
+      const data = (await StoriesAPI.getById(
+        id as string
+      )) as unknown as StoryData;
+      setStoryData(data);
+
+      // Check if we should also check round status
+      // This helps if the page is loaded directly or after voting
+      try {
+        const roundStatus = await StoriesAPI.checkRoundStatus(id as string);
+
+        // If voting period has ended and there are submissions but no query param indicating we just handled this
+        // This prevents an endless loop of rounds ending when the page loads
+        const justEnded =
+          router.query.roundEnded === "true" || router.query.tie === "true";
+
+        if (
+          !justEnded &&
+          roundStatus.canEndRound &&
+          roundStatus.submissionsCount > 0
+        ) {
+          // We don't auto-end the round here, just let the RoundStatus component handle it
+          // This ensures the user can see the state and make decisions about ties
+          console.log("Round is eligible to be ended");
+        }
+      } catch (roundError) {
+        console.error("Error checking round status:", roundError);
+        // Non-critical error, we can still show the story
+      }
+    } catch (err) {
+      setError((err as Error).message || "Error loading story");
+      console.error(err);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  // Handle round ended event to refresh story data
+  const handleRoundEnded = async () => {
+    setRefreshing(true);
+    setTimeout(() => {
+      fetchStory();
+    }, 1000); // Small delay to allow the backend to process
+  };
 
   useEffect(() => {
-    const fetchStory = async () => {
-      if (!id) return;
-
-      try {
-        setLoading(true);
-
-        // Use our API client to fetch the story
-        const data = (await StoriesAPI.getById(
-          id as string
-        )) as unknown as StoryData;
-        setStoryData(data);
-      } catch (err) {
-        setError((err as Error).message || "Error loading story");
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     if (id) {
       fetchStory();
     }
@@ -149,13 +184,28 @@ export default function StoryPage() {
         </div>
 
         <div>
+          {/* Round Status Component */}
+          {id && (
+            <RoundStatus
+              storyId={id as string}
+              onRoundEnded={handleRoundEnded}
+            />
+          )}
+
           <div className="card">
             <h2 className="text-2xl font-bold mb-2">Current Voting Round</h2>
             <p className="text-gray-400 mb-6">
               {current_round.submissions.length > 0
-                ? `Vote closes in ${story.voting_period_days} days`
+                ? `Round ${current_round.position}: Choose the next sentence`
                 : "Waiting for submissions"}
             </p>
+
+            {refreshing && (
+              <div className="text-center py-2 mb-4">
+                <div className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-solid border-primary border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
+                <p className="text-sm text-gray-400 mt-1">Refreshing...</p>
+              </div>
+            )}
 
             {current_round.submissions.length > 0 ? (
               <div className="space-y-6">

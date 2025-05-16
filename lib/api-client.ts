@@ -59,6 +59,35 @@ export const StoriesAPI = {
       method: "POST",
       body: JSON.stringify(storyData),
     }),
+
+  // Check if a round can be ended
+  checkRoundStatus: (
+    id: string
+  ): Promise<{
+    canEndRound: boolean;
+    votingEndDate: string;
+    remainingTime: number;
+    submissionsCount: number;
+    currentRound: number;
+  }> => fetchAPI(`/api/stories/${id}/end-round`),
+
+  // End the current voting round
+  endRound: (
+    id: string,
+    force: boolean = false
+  ): Promise<{
+    success: boolean;
+    message: string;
+    winningSentence?: any;
+    hasTie?: boolean;
+    waitingForTieBreak?: boolean;
+    tiedSubmissions?: { id: string; content: string; votes: number }[];
+    waitingForSubmissions?: boolean;
+  }> =>
+    fetchAPI(`/api/stories/${id}/end-round`, {
+      method: "POST",
+      body: JSON.stringify({ force, waitForTieBreak: !force }),
+    }),
 };
 
 interface VoteResponse {

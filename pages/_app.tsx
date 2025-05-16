@@ -34,6 +34,23 @@ function MyApp({ Component, pageProps }: AppProps) {
     []
   );
 
+  // // Set up automated round checking (client-side)
+  // useEffect(() => {
+  //   // Only run automated checks in production
+  //   if (process.env.NODE_ENV === "production") {
+  //     // Check rounds every 15 minutes
+  //     const stopScheduler = scheduleAutomatedRoundChecks(15);
+
+  //     // Also run a check immediately on app load
+  //     import("../lib/round-automation").then((module) => {
+  //       module.checkAndProcessRounds().catch(console.error);
+  //     });
+
+  //     // Clean up the interval when the app is unmounted
+  //     return () => stopScheduler();
+  //   }
+  // }, []);
+
   return (
     <ConnectionProvider endpoint={endpoint}>
       <SolanaWalletProvider wallets={wallets} autoConnect>

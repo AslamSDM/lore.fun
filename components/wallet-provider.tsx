@@ -9,7 +9,6 @@ import SignMessageModal from "./sign-message-modal";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { useAuthStore } from "../lib/auth-store";
 import { AuthAPI, UsersAPI } from "../lib/api-client";
-import type { User } from "../lib/types";
 
 interface WalletContextType {
   connected: boolean;
@@ -34,9 +33,11 @@ export const WalletContext = createContext<WalletContextType>({
   connect: async () => {},
   disconnect: () => {},
   balance: 0,
+  updateBalance: () => {},
   user: null,
   loading: true,
   setUsername: async () => ({ success: false, error: null }),
+  refreshUser: async () => {},
 });
 
 export function WalletProvider({ children }: { children: ReactNode }) {

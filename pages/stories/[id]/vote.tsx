@@ -84,6 +84,40 @@ export default function VotePage() {
         setVoteSuccess(true);
         setHasVoted(true);
 
+        // Check if the round can be ended after this vote
+        try {
+          const roundStatus = await StoriesAPI.checkRoundStatus(id as string);
+
+          // If voting period has ended and there are submissions, try to auto-end the round
+          if (roundStatus.canEndRound && roundStatus.submissionsCount > 0) {
+            const endResult = await StoriesAPI.endRound(id as string, false);
+
+            if (endResult.success) {
+              // Round ended successfully, redirect with a notification
+              setError(null);
+              // Set a slightly longer delay to allow for round ending processing
+              setTimeout(() => {
+                router.push(`/stories/${id}?roundEnded=true`);
+              }, 3000);
+              return;
+            } else if (endResult.hasTie && endResult.waitingForTieBreak) {
+              // There's a tie, so we'll redirect to the story page to show the tie status
+              setTimeout(() => {
+                router.push(`/stories/${id}?tie=true`);
+              }, 2000);
+              return;
+            } else if (endResult.waitingForSubmissions) {
+              // Shouldn't happen at this point since we checked for submissions
+              console.warn(
+                "Unexpected state: Round ending reports waiting for submissions"
+              );
+            }
+          }
+        } catch (statusError) {
+          console.error("Error checking round status:", statusError);
+          // Continue with normal flow if checking fails
+        }
+
         // Refresh the story data to update vote counts
         setTimeout(() => {
           router.push(`/stories/${id}`);

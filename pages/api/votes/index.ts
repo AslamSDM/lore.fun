@@ -14,6 +14,34 @@ export default async function handler(
       }
 
       try {
+        // First, get the submission to find the story and round
+        const submission = await prisma.submission.findUnique({
+          where: { id: submission_id },
+          include: {
+            story: {
+              include: {
+                sentences: {
+                  orderBy: { position: "desc" },
+                  take: 1,
+                },
+              },
+            },
+          },
+        });
+
+        if (!submission) {
+          return res.status(404).json({ error: "Submission not found" });
+        }
+
+        // Check if this round has already ended
+        const currentRound = submission.story.sentences.length + 1;
+        if (submission.votingRound !== currentRound) {
+          return res.status(400).json({
+            error: "This voting round has already ended",
+            roundEnded: true,
+          });
+        }
+
         // Check if user already voted for this submission
         const existingVote = await prisma.vote.findFirst({
           where: {
