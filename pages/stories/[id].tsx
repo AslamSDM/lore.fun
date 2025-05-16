@@ -7,6 +7,23 @@ import { StoriesAPI } from "../../lib/api-client";
 import RoundStatus from "../../components/stories/RoundStatus";
 import { GetServerSideProps } from "next";
 import { prisma } from "../../lib/prisma";
+import { motion } from "framer-motion";
+import {
+  ScrollAnimation,
+  AnimatedHeading,
+  ScrollTextAnimation,
+} from "@/components/animations/scroll-animation";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardFooter,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 
 interface StoryData {
   story: Story;
@@ -23,11 +40,16 @@ interface StoryPageProps {
   initialError?: string;
 }
 
-export default function StoryPage({ initialStoryData, initialError = "" }: StoryPageProps) {
+export default function StoryPage({
+  initialStoryData,
+  initialError = "",
+}: StoryPageProps) {
   const router = useRouter();
   const { id } = router.query;
   const { connected } = useWallet();
-  const [storyData, setStoryData] = useState<StoryData | null>(initialStoryData);
+  const [storyData, setStoryData] = useState<StoryData | null>(
+    initialStoryData
+  );
   const [loading, setLoading] = useState(!initialStoryData);
   const [error, setError] = useState<string | null>(initialError);
   const [refreshing, setRefreshing] = useState(false);
@@ -130,66 +152,86 @@ export default function StoryPage({ initialStoryData, initialError = "" }: Story
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <Link
-        href="/stories"
-        className="flex items-center text-gray-400 hover:text-white mb-6"
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
       >
-        <svg
-          className="w-5 h-5 mr-2"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-          xmlns="http://www.w3.org/2000/svg"
+        <Link
+          href="/stories"
+          className="flex items-center text-gray-400 hover:text-white mb-6"
         >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M10 19l-7-7m0 0l7-7m-7 7h18"
-          />
-        </svg>
-        Back to Stories
-      </Link>
+          <svg
+            className="w-5 h-5 mr-2"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M10 19l-7-7m0 0l7-7m-7 7h18"
+            />
+          </svg>
+          Back to Stories
+        </Link>
+      </motion.div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2">
-          <div className="card">
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <h1 className="text-3xl font-bold">{story.title}</h1>
-                <p className="text-gray-400">
-                  {story.subtitle || `A ${story.genre} story by the community`}
-                </p>
-              </div>
-              <div className="flex flex-col items-end">
-                <span className="bg-gray-800 text-white text-sm px-3 py-1 rounded-full mb-2">
-                  {progress < 100 ? "In Progress" : "Completed"}
-                </span>
-                <div className="text-sm text-gray-400">
-                  {sentences.length} of {story.min_sentences} sentences
+          <Card>
+            <CardHeader className="pb-2">
+              <div className="flex justify-between items-start">
+                <div>
+                  <AnimatedHeading el="h1" className="text-3xl font-bold">
+                    {story.title}
+                  </AnimatedHeading>
+                  <ScrollAnimation delay={0.1}>
+                    <CardDescription className="text-gray-400 text-lg">
+                      {story.subtitle ||
+                        `A ${story.genre} story by the community`}
+                    </CardDescription>
+                  </ScrollAnimation>
                 </div>
+                <ScrollAnimation
+                  delay={0.2}
+                  className="flex flex-col items-end"
+                >
+                  <Badge
+                    variant={progress < 100 ? "secondary" : "default"}
+                    className="mb-2"
+                  >
+                    {progress < 100 ? "In Progress" : "Completed"}
+                  </Badge>
+                  <div className="text-sm text-gray-400">
+                    {sentences.length} of {story.min_sentences} sentences
+                  </div>
+                </ScrollAnimation>
               </div>
-            </div>
+            </CardHeader>
 
-            <div className="mb-4">
-              <div className="flex justify-between text-sm mb-1">
-                <span>Progress</span>
-                <span>{progress}%</span>
-              </div>
-              <div className="progress-bar">
-                <div
-                  className="progress-value"
-                  style={{ width: `${progress}%` }}
-                ></div>
-              </div>
-            </div>
+            <CardContent>
+              <ScrollAnimation delay={0.3} className="mb-4">
+                <div className="flex justify-between text-sm mb-1">
+                  <span>Progress</span>
+                  <span>{progress}%</span>
+                </div>
+                <Progress value={progress} className="h-2" />
+              </ScrollAnimation>
 
-            <div className="space-y-6 mt-8">
-              {sentences.map((sentence) => (
-                <p key={sentence.id}>{sentence.content}</p>
-              ))}
-            </div>
-          </div>
+              <ScrollTextAnimation
+                delay={0.4}
+                className="space-y-6 mt-8"
+                staggerChildren={0.05}
+              >
+                {sentences.map((sentence) => (
+                  <p key={sentence.id}>{sentence.content}</p>
+                ))}
+              </ScrollTextAnimation>
+            </CardContent>
+          </Card>
         </div>
 
         <div>
@@ -291,6 +333,12 @@ export default function StoryPage({ initialStoryData, initialError = "" }: Story
 // Server Side Props to pre-fetch data
 export const getServerSideProps: GetServerSideProps = async (context) => {
   const { id } = context.params as { id: string };
+  
+  // Enable caching for 30 seconds on this page
+  context.res.setHeader(
+    'Cache-Control',
+    'public, s-maxage=30, stale-while-revalidate=60'
+  );
 
   try {
     // Fetch story directly from the database for SSR

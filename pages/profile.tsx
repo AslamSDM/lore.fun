@@ -6,6 +6,24 @@ import { useWallet } from "../hooks/use-wallet";
 import { useRouter } from "next/router";
 import type { Story, UserStats } from "../lib/types";
 import { UsersAPI } from "../lib/api-client";
+import { motion } from "framer-motion";
+import {
+  ScrollAnimation,
+  AnimatedHeading,
+  ScrollTextAnimation,
+} from "@/components/animations/scroll-animation";
+import { 
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  CardDescription,
+  CardFooter
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 
 export default function ProfilePage() {
   const { user, loading, refreshUser, balance } = useWallet();
@@ -95,26 +113,37 @@ export default function ProfilePage() {
   if (loading || !user) {
     return (
       <div className="container mx-auto px-4 py-16">
-        <div className="text-center">
-          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-primary border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="text-center"
+        >
+          <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
           <p className="mt-4 text-gray-400">Loading profile...</p>
-        </div>
+        </motion.div>
       </div>
     );
   }
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8">My Profile</h1>
+      <AnimatedHeading className="text-3xl font-bold mb-8">My Profile</AnimatedHeading>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-1">
-          <div className="card mb-6">
-            <div className="flex items-center mb-4">
-              <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center text-2xl font-bold">
-                {user.username ? user.username.charAt(0).toUpperCase() : "?"}
-              </div>
-              <div className="ml-4">
+          <ScrollAnimation delay={0.1}>
+            <Card className="mb-6">
+              <CardContent className="pt-6">
+                <div className="flex items-center mb-4">
+                  <motion.div 
+                    initial={{ scale: 0.9, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ duration: 0.4 }}
+                    className="w-16 h-16 bg-primary rounded-full flex items-center justify-center text-2xl font-bold"
+                  >
+                    {user.username ? user.username.charAt(0).toUpperCase() : "?"}
+                  </motion.div>
+                  <div className="ml-4">
                 {!editingUsername ? (
                   <div className="flex items-center">
                     <h2 className="text-xl font-bold">

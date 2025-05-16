@@ -1,18 +1,30 @@
-import Link from "next/link"
-import { useState, useEffect } from "react"
-import type { Story } from "../../lib/types"
-import { GetServerSideProps } from "next"
-import { prisma } from "../../lib/prisma"
+import Link from "next/link";
+import { useState, useEffect } from "react";
+import type { Story } from "../../lib/types";
+import { GetServerSideProps } from "next";
+import { prisma } from "../../lib/prisma";
+import { StoryCard } from "@/components/stories/story-card";
+import {
+  ScrollAnimation,
+  AnimatedHeading,
+} from "@/components/animations/scroll-animation";
+import { Button } from "@/components/ui/button";
+import { motion } from "framer-motion";
 
 interface StoriesPageProps {
   initialStories: Story[];
   initialError?: string;
 }
 
-export default function StoriesPage({ initialStories, initialError = "" }: StoriesPageProps) {
-  const [stories, setStories] = useState<Story[]>(initialStories)
-  const [loading, setLoading] = useState(initialStories.length === 0 && !initialError)
-  const [error, setError] = useState<string | null>(initialError)
+export default function StoriesPage({
+  initialStories,
+  initialError = "",
+}: StoriesPageProps) {
+  const [stories, setStories] = useState<Story[]>(initialStories);
+  const [loading, setLoading] = useState(
+    initialStories.length === 0 && !initialError
+  );
+  const [error, setError] = useState<string | null>(initialError);
 
   useEffect(() => {
     // We only need to fetch data if we don't have initial data from SSR
@@ -20,24 +32,24 @@ export default function StoriesPage({ initialStories, initialError = "" }: Stori
     if (initialStories.length === 0 || initialError) {
       const fetchStories = async () => {
         try {
-          const response = await fetch("/api/stories")
+          const response = await fetch("/api/stories");
           if (!response.ok) {
-            throw new Error("Failed to fetch stories")
+            throw new Error("Failed to fetch stories");
           }
-          const data = await response.json()
-          setStories(data)
-          setError(null)
+          const data = await response.json();
+          setStories(data);
+          setError(null);
         } catch (err) {
-          setError("Error loading stories. Please try again later.")
-          console.error(err)
+          setError("Error loading stories. Please try again later.");
+          console.error(err);
         } finally {
-          setLoading(false)
+          setLoading(false);
         }
-      }
+      };
 
-      fetchStories()
+      fetchStories();
     }
-  }, [initialStories, initialError])
+  }, [initialStories, initialError]);
 
   if (loading) {
     return (
@@ -47,7 +59,7 @@ export default function StoriesPage({ initialStories, initialError = "" }: Stori
           <p className="mt-4 text-gray-400">Loading stories...</p>
         </div>
       </div>
-    )
+    );
   }
 
   if (error) {
@@ -55,89 +67,74 @@ export default function StoriesPage({ initialStories, initialError = "" }: Stori
       <div className="container mx-auto px-4 py-8">
         <div className="card text-center py-8">
           <p className="text-red-400 mb-4">{error}</p>
-          <button onClick={() => window.location.reload()} className="btn-primary">
+          <button
+            onClick={() => window.location.reload()}
+            className="btn-primary"
+          >
             Try Again
           </button>
         </div>
       </div>
-    )
+    );
   }
 
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">Community Stories</h1>
-        <Link href="/create" className="btn-primary">
-          Create New Story
-        </Link>
+        <AnimatedHeading el="h1" className="text-3xl font-bold">
+          Community Stories
+        </AnimatedHeading>
+
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.3 }}
+        >
+          <Link href="/create">
+            <Button className="bg-primary hover:bg-primary/90">
+              Create New Story
+            </Button>
+          </Link>
+        </motion.div>
       </div>
 
       {stories.length === 0 ? (
-        <div className="card text-center py-8">
-          <p className="text-gray-400 mb-4">No stories found. Be the first to create one!</p>
-          <Link href="/create" className="btn-primary">
-            Create New Story
-          </Link>
-        </div>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="text-center py-8"
+        >
+          <ScrollAnimation>
+            <p className="text-gray-400 mb-4">
+              No stories found. Be the first to create one!
+            </p>
+            <Link href="/create">
+              <Button className="bg-primary hover:bg-primary/90">
+                Create New Story
+              </Button>
+            </Link>
+          </ScrollAnimation>
+        </motion.div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {stories.map((story) => {
-            // Calculate progress percentage based on sentences count and min_sentences
-            const progress = Math.min(
-              Math.round(((story.sentences_count || 0) / (story.min_sentences || 100)) * 100),
-              100,
-            )
-
-            return (
-              <Link
-                href={`/stories/${story.id}`}
-                key={story.id}
-                className="card hover:border-primary transition-all block"
-              >
-                <div className="mb-4">
-                  <h2 className="text-xl font-bold">{story.title}</h2>
-                  <p className="text-gray-400">{story.subtitle || story.genre}</p>
-                </div>
-
-                <div className="mb-4">
-                  <div className="flex justify-between text-sm mb-1">
-                    <span>Progress</span>
-                    <span>{progress}%</span>
-                  </div>
-                  <div className="progress-bar">
-                    <div className="progress-value" style={{ width: `${progress}%` }}></div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="text-gray-400">Sentences</p>
-                    <p className="font-medium">{story.sentences_count || 0}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-400">Contributors</p>
-                    <p className="font-medium">{story.contributors_count || 0}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-400">Genre</p>
-                    <p className="font-medium">{story.genre}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-400">Created</p>
-                    <p className="font-medium">{new Date(story.created_at).toLocaleDateString()}</p>
-                  </div>
-                </div>
-              </Link>
-            )
-          })}
+          {stories.map((story, index) => (
+            <StoryCard key={story.id} story={story} index={index} />
+          ))}
         </div>
       )}
     </div>
-  )
+  );
 }
 
 // Server Side Props to pre-fetch data
-export const getServerSideProps: GetServerSideProps = async () => {
+export const getServerSideProps: GetServerSideProps = async (context) => {
+  // Enable caching for 60 seconds on this page
+  context.res.setHeader(
+    'Cache-Control',
+    'public, s-maxage=60, stale-while-revalidate=120'
+  );
+  
   try {
     // Get all stories with related data using optimized queries
     const stories = await prisma.story.findMany({
