@@ -80,7 +80,10 @@ export function withAuth(handler: ApiHandler) {
         }
 
         // Get user by wallet address
-        const user = await UserService.getUserByWalletAddress(walletAddress);
+        const user = await UserService.getUserByWalletAddress(
+          prisma,
+          walletAddress
+        );
 
         if (!user) {
           return res
