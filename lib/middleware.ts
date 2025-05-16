@@ -20,11 +20,32 @@ type ApiHandler = (
 export function withPrisma(handler: ApiHandler) {
   return async (req: NextApiRequest, res: NextApiResponse) => {
     try {
+      // Verify Prisma client is ready before passing it
+      try {
+        // Perform a simple query to check connection
+        await prisma.$queryRaw`SELECT 1`;
+      } catch (dbError) {
+        console.error("Database connection error:", dbError);
+        return res.status(503).json({
+          error: "Database connection error",
+          details:
+            process.env.NODE_ENV !== "production"
+              ? (dbError as Error).message
+              : undefined,
+        });
+      }
+
       // Pass prisma client to the handler
       return await handler(req, res, { prisma });
     } catch (error) {
-      console.error(error);
-      return res.status(500).json({ error: "Internal server error" });
+      console.error("API handler error:", error);
+      return res.status(500).json({
+        error: "Internal server error",
+        details:
+          process.env.NODE_ENV !== "production"
+            ? (error as Error).message
+            : undefined,
+      });
     }
   };
 }

@@ -1,58 +1,54 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/router"
-import Link from "next/link"
-import type { Story, StorySentence, Submission } from "../../lib/types"
-import { useWallet } from "../../hooks/use-wallet"
+import { useState, useEffect } from "react";
+import { useRouter } from "next/router";
+import Link from "next/link";
+import type { Story, StorySentence, Submission } from "../../lib/types";
+import { useWallet } from "../../hooks/use-wallet";
+import { StoriesAPI } from "../../lib/api-client";
 
 interface StoryData {
-  story: Story
-  sentences: StorySentence[]
+  story: Story;
+  sentences: StorySentence[];
   current_round: {
-    position: number
-    submissions: Submission[]
-    total_votes: number
-  }
+    position: number;
+    submissions: Submission[];
+    total_votes: number;
+  };
 }
 
 export default function StoryPage() {
-  const router = useRouter()
-  const { id } = router.query
-  const { connected } = useWallet()
-  const [storyData, setStoryData] = useState<StoryData | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const router = useRouter();
+  const { id } = router.query;
+  const { connected } = useWallet();
+  const [storyData, setStoryData] = useState<StoryData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchStory = async () => {
-      if (!id) return
+      if (!id) return;
 
       try {
-        setLoading(true)
-        const response = await fetch(`/api/stories/${id}`)
+        setLoading(true);
 
-        if (!response.ok) {
-          if (response.status === 404) {
-            throw new Error("Story not found")
-          }
-          throw new Error("Failed to fetch story")
-        }
-
-        const data = await response.json()
-        setStoryData(data)
+        // Use our API client to fetch the story
+        const data = (await StoriesAPI.getById(
+          id as string
+        )) as unknown as StoryData;
+        setStoryData(data);
       } catch (err) {
-        setError((err as Error).message || "Error loading story")
-        console.error(err)
+        setError((err as Error).message || "Error loading story");
+        console.error(err);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
     if (id) {
-      fetchStory()
+      fetchStory();
     }
-  }, [id])
+  }, [id]);
 
   if (loading) {
     return (
@@ -62,7 +58,7 @@ export default function StoryPage() {
           <p className="mt-4 text-gray-400">Loading story...</p>
         </div>
       </div>
-    )
+    );
   }
 
   if (error) {
@@ -75,19 +71,25 @@ export default function StoryPage() {
           </Link>
         </div>
       </div>
-    )
+    );
   }
 
-  if (!storyData) return null
+  if (!storyData) return null;
 
-  const { story, sentences, current_round } = storyData
+  const { story, sentences, current_round } = storyData;
 
   // Calculate progress percentage
-  const progress = Math.min(Math.round((sentences.length / (story.min_sentences || 100)) * 100), 100)
+  const progress = Math.min(
+    Math.round((sentences.length / (story.min_sentences || 100)) * 100),
+    100
+  );
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <Link href="/stories" className="flex items-center text-gray-400 hover:text-white mb-6">
+      <Link
+        href="/stories"
+        className="flex items-center text-gray-400 hover:text-white mb-6"
+      >
         <svg
           className="w-5 h-5 mr-2"
           fill="none"
@@ -95,7 +97,12 @@ export default function StoryPage() {
           viewBox="0 0 24 24"
           xmlns="http://www.w3.org/2000/svg"
         >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M10 19l-7-7m0 0l7-7m-7 7h18"
+          />
         </svg>
         Back to Stories
       </Link>
@@ -106,7 +113,9 @@ export default function StoryPage() {
             <div className="flex justify-between items-start mb-4">
               <div>
                 <h1 className="text-3xl font-bold">{story.title}</h1>
-                <p className="text-gray-400">{story.subtitle || `A ${story.genre} story by the community`}</p>
+                <p className="text-gray-400">
+                  {story.subtitle || `A ${story.genre} story by the community`}
+                </p>
               </div>
               <div className="flex flex-col items-end">
                 <span className="bg-gray-800 text-white text-sm px-3 py-1 rounded-full mb-2">
@@ -124,7 +133,10 @@ export default function StoryPage() {
                 <span>{progress}%</span>
               </div>
               <div className="progress-bar">
-                <div className="progress-value" style={{ width: `${progress}%` }}></div>
+                <div
+                  className="progress-value"
+                  style={{ width: `${progress}%` }}
+                ></div>
               </div>
             </div>
 
@@ -148,35 +160,51 @@ export default function StoryPage() {
             {current_round.submissions.length > 0 ? (
               <div className="space-y-6">
                 {current_round.submissions.slice(0, 3).map((submission) => (
-                  <div key={submission.id} className="border border-gray-700 rounded-lg p-4">
+                  <div
+                    key={submission.id}
+                    className="border border-gray-700 rounded-lg p-4"
+                  >
                     <div className="flex justify-between items-start mb-2">
-                      <p className="text-sm font-medium">By {submission.author?.username || "Anonymous"}</p>
+                      <p className="text-sm font-medium">
+                        By {submission.author?.username || "Anonymous"}
+                      </p>
                       <p className="text-sm text-gray-400">
-                        {submission.percentage}% ({submission.votes_count} votes)
+                        {submission.percentage}% ({submission.votes_count}{" "}
+                        votes)
                       </p>
                     </div>
                     <blockquote className="border-l-4 border-primary pl-4 italic mb-4">
                       "{submission.content}"
                     </blockquote>
-                    <Link href={`/stories/${id}/vote`} className="btn-primary text-center block w-full">
+                    <Link
+                      href={`/stories/${id}/vote`}
+                      className="btn-primary text-center block w-full"
+                    >
                       Vote
                     </Link>
                   </div>
                 ))}
 
-                <Link href={`/stories/${id}/vote`} className="text-primary hover:underline block text-center mt-6">
+                <Link
+                  href={`/stories/${id}/vote`}
+                  className="text-primary hover:underline block text-center mt-6"
+                >
                   View All Submissions
                 </Link>
               </div>
             ) : (
               <div className="text-center py-4">
-                <p className="text-gray-400 mb-4">No submissions yet. Be the first to contribute!</p>
+                <p className="text-gray-400 mb-4">
+                  No submissions yet. Be the first to contribute!
+                </p>
                 {connected ? (
                   <Link href={`/stories/${id}/submit`} className="btn-primary">
                     Submit Next Sentence
                   </Link>
                 ) : (
-                  <p className="text-sm text-gray-400">Connect your wallet to submit</p>
+                  <p className="text-sm text-gray-400">
+                    Connect your wallet to submit
+                  </p>
                 )}
               </div>
             )}
@@ -189,12 +217,14 @@ export default function StoryPage() {
               </Link>
             ) : (
               <div className="card text-center">
-                <p className="text-gray-400 mb-4">Connect your wallet to participate</p>
+                <p className="text-gray-400 mb-4">
+                  Connect your wallet to participate
+                </p>
               </div>
             )}
           </div>
         </div>
       </div>
     </div>
-  )
+  );
 }

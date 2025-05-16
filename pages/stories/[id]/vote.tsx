@@ -5,6 +5,7 @@ import { useRouter } from "next/router";
 import Link from "next/link";
 import { useWallet } from "../../../hooks/use-wallet";
 import type { Story, StorySentence, Submission } from "../../../lib/types";
+import { VotesAPI, StoriesAPI } from "../../../lib/api-client";
 
 interface StoryData {
   story: Story;
@@ -36,16 +37,9 @@ export default function VotePage() {
 
       try {
         setLoading(true);
-        const response = await fetch(`/api/stories/${id}`);
 
-        if (!response.ok) {
-          if (response.status === 404) {
-            throw new Error("Story not found");
-          }
-          throw new Error("Failed to fetch story");
-        }
-
-        const data = await response.json();
+        // Use the StoriesAPI client helper to fetch the story
+        const data = (await StoriesAPI.getById(id as string)) as StoryData;
         setStoryData(data);
       } catch (err) {
         setError((err as Error).message || "Error loading story");
@@ -80,29 +74,40 @@ export default function VotePage() {
       setIsSubmitting(true);
       setError(null);
 
-      const response = await fetch("/api/votes", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
+      try {
+        // Use our client API helper to submit the vote
+        await VotesAPI.cast({
           submission_id: selectedSubmission,
           user_id: user.id,
-        }),
-      });
+        });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to submit vote");
+        setVoteSuccess(true);
+        setHasVoted(true);
+
+        // Refresh the story data to update vote counts
+        setTimeout(() => {
+          router.push(`/stories/${id}`);
+        }, 2000);
+      } catch (apiError) {
+        // Check if error is about already voting
+        const errorMsg = (apiError as Error).message;
+
+        if (errorMsg.includes("already voted")) {
+          setVoteSuccess(true);
+          setHasVoted(true);
+
+          // Show a different message
+          setError("You have already voted for a submission in this round");
+
+          // Still redirect after a short delay
+          setTimeout(() => {
+            router.push(`/stories/${id}`);
+          }, 2000);
+          return;
+        }
+
+        throw apiError;
       }
-
-      setVoteSuccess(true);
-      setHasVoted(true);
-
-      // Refresh the story data to update vote counts
-      setTimeout(() => {
-        router.push(`/stories/${id}`);
-      }, 2000);
     } catch (err) {
       setError((err as Error).message || "Error submitting vote");
       console.error(err);
@@ -181,6 +186,38 @@ export default function VotePage() {
           </blockquote>
         </div>
 
+        <div className="flex justify-between items-center mb-4">
+          <div className="text-sm text-gray-400">
+            <span className="mr-4">
+              <svg
+                className="w-4 h-4 inline mr-1"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              Voting deadline:{" "}
+              {new Date(
+                new Date(story.created_at).getTime() +
+                  story.voting_period_days * 86400000
+              ).toLocaleDateString()}
+            </span>
+          </div>
+          <div className="text-sm">
+            <span className="text-primary">
+              {current_round.total_votes || 0}
+            </span>{" "}
+            votes cast
+          </div>
+        </div>
+
         {voteSuccess ? (
           <div className="bg-green-900 bg-opacity-30 border border-green-500 text-green-300 px-4 py-6 rounded mb-6 text-center">
             <p className="text-xl mb-2">Vote submitted successfully!</p>
@@ -193,8 +230,8 @@ export default function VotePage() {
                 key={submission.id}
                 className={`border rounded-lg p-4 cursor-pointer transition-all ${
                   selectedSubmission === submission.id
-                    ? "border-primary bg-primary bg-opacity-10"
-                    : "border-gray-700 hover:border-gray-500"
+                    ? "border-primary bg-primary bg-opacity-10 shadow-lg shadow-primary/20"
+                    : "border-gray-700 hover:border-gray-500 hover:shadow-md hover:shadow-gray-700/10"
                 }`}
                 onClick={() => setSelectedSubmission(submission.id)}
               >
@@ -205,17 +242,19 @@ export default function VotePage() {
                         selectedSubmission === submission.id
                           ? "border-primary"
                           : "border-gray-500"
-                      } flex items-center justify-center`}
+                      } flex items-center justify-center transition-all`}
                     >
                       {selectedSubmission === submission.id && (
-                        <div className="w-3 h-3 rounded-full bg-primary"></div>
+                        <div className="w-3 h-3 rounded-full bg-primary animate-pulse"></div>
                       )}
                     </div>
                   </div>
                   <div className="flex-1">
-                    <p className="mb-2">{submission.content}</p>
-                    <div className="flex items-center text-sm text-gray-400">
-                      <span className="mr-4">
+                    <p className="mb-3 text-white leading-relaxed">
+                      {submission.content}
+                    </p>
+                    <div className="flex flex-wrap items-center text-sm text-gray-400">
+                      <span className="mr-4 mb-1">
                         <svg
                           className="w-4 h-4 inline mr-1"
                           fill="none"
@@ -247,19 +286,37 @@ export default function VotePage() {
                             d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5"
                           />
                         </svg>
-                        {submission.votes_count || 0} votes
+                        <span
+                          className={
+                            submission.votes_count
+                              ? "text-primary font-medium"
+                              : ""
+                          }
+                        >
+                          {submission.votes_count || 0}
+                        </span>{" "}
+                        votes
                       </span>
                     </div>
                   </div>
                 </div>
 
                 <div>
-                  <div className="text-right text-sm mb-1">
-                    Current standing: {submission.percentage || 0}%
+                  <div className="flex justify-between text-sm mb-1">
+                    <span>Votes</span>
+                    <span
+                      className={
+                        submission.percentage && submission.percentage > 0
+                          ? "text-primary font-medium"
+                          : "text-gray-400"
+                      }
+                    >
+                      {submission.percentage || 0}%
+                    </span>
                   </div>
-                  <div className="progress-bar">
+                  <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
                     <div
-                      className="progress-value"
+                      className="h-full bg-primary transition-all duration-500"
                       style={{ width: `${submission.percentage || 0}%` }}
                     ></div>
                   </div>
@@ -307,19 +364,72 @@ export default function VotePage() {
             <button
               onClick={handleVote}
               disabled={selectedSubmission === null || hasVoted || isSubmitting}
-              className={`btn-primary ${
+              className={`btn-primary flex items-center justify-center ${
                 selectedSubmission === null || hasVoted || isSubmitting
                   ? "opacity-50 cursor-not-allowed"
-                  : ""
+                  : "hover:shadow-md hover:shadow-primary/20"
               }`}
             >
-              {!connected
-                ? "Connect Wallet to Vote"
-                : isSubmitting
-                ? "Submitting..."
-                : hasVoted
-                ? "Vote Submitted!"
-                : "Submit Vote"}
+              {!connected ? (
+                <>
+                  <svg
+                    className="w-5 h-5 mr-2"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                    ></path>
+                  </svg>
+                  Connect Wallet to Vote
+                </>
+              ) : isSubmitting ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                  Submitting...
+                </>
+              ) : hasVoted ? (
+                <>
+                  <svg
+                    className="w-5 h-5 mr-2"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 13l4 4L19 7"
+                    ></path>
+                  </svg>
+                  Vote Submitted!
+                </>
+              ) : (
+                <>
+                  <svg
+                    className="w-5 h-5 mr-2"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M14 5l7 7m0 0l-7 7m7-7H3"
+                    ></path>
+                  </svg>
+                  Submit Vote
+                </>
+              )}
             </button>
           </div>
         )}

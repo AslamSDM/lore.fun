@@ -1,15 +1,22 @@
-import { prisma } from "./prisma";
+import { PrismaClient } from "@prisma/client";
 
 export class UserService {
   // Get a user by wallet address
-  static async getUserByWalletAddress(walletAddress: string) {
+  static async getUserByWalletAddress(
+    prisma: PrismaClient,
+    walletAddress: string
+  ) {
     return prisma.user.findUnique({
       where: { walletAddress },
     });
   }
 
   // Create a new user
-  static async createUser(walletAddress: string, username?: string) {
+  static async createUser(
+    prisma: PrismaClient,
+    walletAddress: string,
+    username?: string
+  ) {
     return prisma.user.create({
       data: {
         walletAddress,
@@ -19,18 +26,42 @@ export class UserService {
   }
 
   // Get or create a user
-  static async getOrCreateUser(walletAddress: string) {
+  static async getOrCreateUser(prisma: PrismaClient, walletAddress: string) {
     try {
-      let user = await this.getUserByWalletAddress(walletAddress);
+      // Try to find user with retry logic
+      let attempts = 0;
+      let user = null;
       let isNew = false;
 
+      while (attempts < 2) {
+        try {
+          user = await this.getUserByWalletAddress(prisma, walletAddress);
+          break; // If successful, exit the loop
+        } catch (findError) {
+          console.warn(
+            `Attempt ${attempts + 1} failed to find user:`,
+            findError
+          );
+          attempts++;
+          if (attempts >= 2) throw findError; // Re-throw on last attempt
+          await new Promise((resolve) => setTimeout(resolve, 500)); // Wait 500ms before retry
+        }
+      }
+
+      // If user doesn't exist, create one
       if (!user) {
-        user = await this.createUser(walletAddress);
-        isNew = true;
+        try {
+          user = await this.createUser(prisma, walletAddress);
+          isNew = true;
+        } catch (createError) {
+          console.error("Failed to create user:", createError);
+          throw createError;
+        }
       }
 
       return { user, isNew, error: null };
     } catch (error) {
+      console.error("Error in getOrCreateUser:", error);
       return { user: null, isNew: false, error: (error as Error).message };
     }
   }

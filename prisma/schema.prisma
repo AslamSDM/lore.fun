@@ -6,17 +6,17 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
-  id            String   @id @default(uuid())
-  walletAddress String   @unique @map("wallet_address")
-  username      String?
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
-
+  id             String          @id @default(uuid())
+  walletAddress  String          @unique @map("wallet_address")
+  username       String?
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
   // Relations
   createdStories Story[]         @relation("CreatedByUser")
   submissions    Submission[]

@@ -6,10 +6,25 @@ import { PrismaClient } from "@prisma/client";
 
 const globalForPrisma = global as unknown as { prisma: PrismaClient };
 
-export const prisma =
-  globalForPrisma.prisma ||
-  new PrismaClient({
-    log: ["query"],
-  });
+// Make sure database URL is properly configured
+if (!process.env.DATABASE_URL) {
+  console.warn("DATABASE_URL environment variable is not set or empty.");
+}
 
+// Function to create the PrismaClient with proper error handling
+function createPrismaClient() {
+  try {
+    return new PrismaClient({
+      log: ["query", "error", "warn"],
+    });
+  } catch (error) {
+    console.error("Failed to create PrismaClient:", error);
+    throw error;
+  }
+}
+
+// Create or reuse the PrismaClient instance
+export const prisma = globalForPrisma.prisma || createPrismaClient();
+
+// Save the client to the global object in development
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;

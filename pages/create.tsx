@@ -4,10 +4,11 @@ import { useState } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
 import { useWallet } from "../hooks/use-wallet";
+import { StoriesAPI } from "../lib/api-client";
 
 export default function CreateStoryPage() {
   const router = useRouter();
-  const { connected, connect, user } = useWallet();
+  const { publicKey, connected, connect } = useWallet();
   const [title, setTitle] = useState("");
   const [subtitle, setSubtitle] = useState("");
   const [firstSentence, setFirstSentence] = useState("");
@@ -15,9 +16,7 @@ export default function CreateStoryPage() {
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState("");
   console.log("connected", connected);
-  console.log("user", user);
   const handleCreate = async () => {
-    console.log(connected, user);
     if (!connected) {
       // Clear any previous errors when initiating connection
       setError("");
@@ -34,26 +33,20 @@ export default function CreateStoryPage() {
       setError("");
       setIsCreating(true);
 
-      const response = await fetch("/api/stories", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          title,
-          subtitle,
-          genre,
-          first_sentence: firstSentence, // API still expects snake_case keys
-          created_by: "1", // Our middleware handles conversion to camelCase
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to create story");
+      // Ensure publicKey is available
+      if (!publicKey) {
+        throw new Error("Wallet not connected properly");
       }
 
-      const story = await response.json();
+      // Use our API client to create the story
+      const story = await StoriesAPI.create({
+        title,
+        subtitle: subtitle || undefined,
+        genre,
+        first_sentence: firstSentence,
+        created_by: publicKey.toString(),
+      });
+
       router.push(`/stories/${story.id}`);
     } catch (err) {
       setError((err as Error).message || "Error creating story");

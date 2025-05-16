@@ -2,13 +2,14 @@
 
 import { createContext, useEffect, useState, type ReactNode } from "react";
 import { useWallet as useSolanaWallet } from "@solana/wallet-adapter-react";
-import { updateUsername } from "../lib/solana";
 import { generateSignMessage } from "../lib/auth";
 import type { User } from "../lib/types";
 import UsernameModal from "./username-modal";
 import SignMessageModal from "./sign-message-modal";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { useAuthStore } from "../lib/auth-store";
+import { AuthAPI, UsersAPI } from "../lib/api-client";
+import type { User } from "../lib/types";
 
 interface WalletContextType {
   connected: boolean;
@@ -17,11 +18,13 @@ interface WalletContextType {
   connect: () => Promise<void>;
   disconnect: () => void;
   balance: number;
+  updateBalance: (newBalance: number) => void;
   user: User | null;
   loading: boolean;
   setUsername: (
     username: string
   ) => Promise<{ success: boolean; error: string | null }>;
+  refreshUser: () => Promise<void>;
 }
 
 export const WalletContext = createContext<WalletContextType>({
@@ -84,24 +87,16 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           // Convert the signature to a string
           const signatureString = Buffer.from(signature).toString("base64");
 
-          // Authenticate with the server
-          const response = await fetch("/api/auth/signin", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              walletAddress,
-              signature: signatureString,
-            }),
-          });
+          // Authenticate with the server using our API client
+          const {
+            authenticated,
+            user: dbUser,
+            isNewUser,
+          } = await AuthAPI.signin(walletAddress, signatureString);
 
-          if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || "Authentication failed");
+          if (!authenticated) {
+            throw new Error("Authentication failed");
           }
-
-          const { user: dbUser, isNewUser } = await response.json();
           setUser(dbUser);
 
           // Reset auth state
@@ -161,14 +156,39 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       return { success: false, error: "User not found" };
     }
 
-    const result = await updateUsername(user.id, username);
+    try {
+      // Use our API client to update the username
+      await UsersAPI.updateUsername(user.id, username);
 
-    if (result.success) {
+      // Update local state
       setUser((prev) => (prev ? { ...prev, username } : null));
       setShowUsernameModal(false);
-    }
 
-    return result;
+      return { success: true, error: null };
+    } catch (error) {
+      console.error("Error updating username:", error);
+      return {
+        success: false,
+        error: (error as Error).message || "Failed to update username",
+      };
+    }
+  };
+
+  // Add a method to refresh user data from the server
+  const refreshUser = async (): Promise<void> => {
+    if (!user) return;
+
+    try {
+      const updatedUser = await UsersAPI.getProfile(user.id);
+      setUser(updatedUser);
+    } catch (error) {
+      console.error("Error refreshing user data:", error);
+    }
+  };
+
+  // Function to update the wallet balance
+  const updateBalance = (newBalance: number) => {
+    setBalance(newBalance);
   };
 
   return (
@@ -183,6 +203,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         user,
         loading,
         setUsername: handleSetUsername,
+        refreshUser,
+        updateBalance,
       }}
     >
       {children}
