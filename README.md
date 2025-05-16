@@ -1,2 +1,2 @@
 # LORE.FUN
-## Collaborative Storytelling onchain
+## Collaborative Storytelling onchain on Solana
