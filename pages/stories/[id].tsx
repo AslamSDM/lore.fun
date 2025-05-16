@@ -1,5 +1,3 @@
-"use client";
-
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
@@ -7,6 +5,8 @@ import type { Story, StorySentence, Submission } from "../../lib/types";
 import { useWallet } from "../../hooks/use-wallet";
 import { StoriesAPI } from "../../lib/api-client";
 import RoundStatus from "../../components/stories/RoundStatus";
+import { GetServerSideProps } from "next";
+import { prisma } from "../../lib/prisma";
 
 interface StoryData {
   story: Story;
@@ -18,13 +18,18 @@ interface StoryData {
   };
 }
 
-export default function StoryPage() {
+interface StoryPageProps {
+  initialStoryData: StoryData | null;
+  initialError?: string;
+}
+
+export default function StoryPage({ initialStoryData, initialError = "" }: StoryPageProps) {
   const router = useRouter();
   const { id } = router.query;
   const { connected } = useWallet();
-  const [storyData, setStoryData] = useState<StoryData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [storyData, setStoryData] = useState<StoryData | null>(initialStoryData);
+  const [loading, setLoading] = useState(!initialStoryData);
+  const [error, setError] = useState<string | null>(initialError);
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchStory = async () => {
@@ -33,11 +38,15 @@ export default function StoryPage() {
     try {
       if (!refreshing) setLoading(true);
 
-      // Use our API client to fetch the story
-      const data = (await StoriesAPI.getById(
-        id as string
-      )) as unknown as StoryData;
-      setStoryData(data);
+      // Only fetch if we don't have initial data from SSR
+      // or if we're explicitly refreshing the data
+      if (!initialStoryData || refreshing) {
+        // Use our API client to fetch the story
+        const data = (await StoriesAPI.getById(
+          id as string
+        )) as unknown as StoryData;
+        setStoryData(data);
+      }
 
       // Check if we should also check round status
       // This helps if the page is loaded directly or after voting
@@ -80,10 +89,10 @@ export default function StoryPage() {
   };
 
   useEffect(() => {
-    if (id) {
+    if (id && (!initialStoryData || refreshing)) {
       fetchStory();
     }
-  }, [id]);
+  }, [id, initialStoryData, refreshing]);
 
   if (loading) {
     return (
@@ -278,3 +287,139 @@ export default function StoryPage() {
     </div>
   );
 }
+
+// Server Side Props to pre-fetch data
+export const getServerSideProps: GetServerSideProps = async (context) => {
+  const { id } = context.params as { id: string };
+
+  try {
+    // Fetch story directly from the database for SSR
+    const story = await prisma.story.findUnique({
+      where: { id },
+      include: {
+        creator: {
+          select: {
+            id: true,
+            username: true,
+          },
+        },
+      },
+    });
+
+    if (!story) {
+      return {
+        notFound: true, // This will show the 404 page
+      };
+    }
+
+    // Fetch story sentences
+    const sentences = await prisma.storySentence.findMany({
+      where: { storyId: id },
+      orderBy: { position: "asc" },
+      include: {
+        author: {
+          select: {
+            id: true,
+            username: true,
+          },
+        },
+      },
+    });
+
+    // Calculate current voting round
+    const currentRoundPosition = sentences.length + 1;
+
+    // Get submissions for current round with votes
+    const submissions = await prisma.submission.findMany({
+      where: {
+        storyId: id,
+        votingRound: currentRoundPosition,
+      },
+      include: {
+        author: {
+          select: {
+            id: true,
+            username: true,
+          },
+        },
+        votes: true,
+      },
+    });
+
+    // Count total votes for this round
+    const totalVotes = submissions.reduce(
+      (sum, sub) => sum + sub.votes.length,
+      0
+    );
+
+    // Calculate percentage for each submission
+    const processedSubmissions = submissions.map((sub) => {
+      const votesCount = sub.votes.length;
+      const percentage =
+        totalVotes > 0 ? Math.round((votesCount / totalVotes) * 100) : 0;
+
+      return {
+        id: sub.id,
+        story_id: sub.storyId,
+        content: sub.content,
+        submitted_by: sub.submittedBy,
+        voting_round: sub.votingRound,
+        is_winner: sub.isWinner,
+        created_at: sub.createdAt.toISOString(),
+        author: sub.author,
+        votes_count: votesCount,
+        percentage,
+      };
+    });
+
+    // Format the response data to match what the client expects
+    const formattedStory = {
+      id: story.id,
+      title: story.title,
+      subtitle: story.subtitle,
+      genre: story.genre,
+      first_sentence: story.firstSentence,
+      created_by: story.createdById,
+      min_sentences: story.minSentences,
+      voting_period_days: story.votingPeriodDays,
+      submission_period_hours: story.submissionPeriodHours,
+      created_at: story.createdAt.toISOString(),
+      updated_at: story.updatedAt.toISOString(),
+      creator: story.creator,
+    };
+
+    const formattedSentences = sentences.map((sentence) => ({
+      id: sentence.id,
+      story_id: sentence.storyId,
+      content: sentence.content,
+      position: sentence.position,
+      submitted_by: sentence.submittedBy,
+      created_at: sentence.createdAt.toISOString(),
+      author: sentence.author,
+    }));
+
+    const initialStoryData = {
+      story: formattedStory,
+      sentences: formattedSentences,
+      current_round: {
+        position: currentRoundPosition,
+        submissions: processedSubmissions,
+        total_votes: totalVotes,
+      },
+    };
+
+    return {
+      props: {
+        initialStoryData,
+      },
+    };
+  } catch (error) {
+    console.error("Error in getServerSideProps:", error);
+    return {
+      props: {
+        initialStoryData: null,
+        initialError: "Failed to load story data",
+      },
+    };
+  }
+};

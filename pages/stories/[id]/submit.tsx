@@ -1,13 +1,12 @@
-"use client";
-
 import type React from "react";
-
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
 import { useWallet } from "../../../hooks/use-wallet";
 import type { Story, StorySentence } from "../../../lib/types";
 import { StoriesAPI, SubmissionsAPI } from "../../../lib/api-client";
+import { GetServerSideProps } from "next";
+import { prisma } from "../../../lib/prisma";
 
 interface StoryData {
   story: Story;
@@ -19,22 +18,28 @@ interface StoryData {
   };
 }
 
-export default function SubmitPage() {
+interface SubmitPageProps {
+  initialStoryData: StoryData | null;
+  initialError?: string;
+}
+
+export default function SubmitPage({ initialStoryData, initialError = "" }: SubmitPageProps) {
   const router = useRouter();
   const { id } = router.query;
   const { connected, connect, user } = useWallet();
-  const [storyData, setStoryData] = useState<StoryData | null>(null);
+  const [storyData, setStoryData] = useState<StoryData | null>(initialStoryData);
   const [submission, setSubmission] = useState("");
   const [wordCount, setWordCount] = useState(0);
   const [charCount, setCharCount] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(initialError);
+  const [loading, setLoading] = useState(!initialStoryData);
   const [submitSuccess, setSubmitSuccess] = useState(false);
 
+  // Only fetch if we don't have initial data from SSR
   useEffect(() => {
     const fetchStory = async () => {
-      if (!id) return;
+      if (!id || initialStoryData) return;
 
       try {
         setLoading(true);
@@ -52,10 +57,10 @@ export default function SubmitPage() {
       }
     };
 
-    if (id) {
+    if (id && !initialStoryData) {
       fetchStory();
     }
-  }, [id]);
+  }, [id, initialStoryData]);
 
   const handleSubmissionChange = (
     e: React.ChangeEvent<HTMLTextAreaElement>
@@ -263,3 +268,117 @@ export default function SubmitPage() {
     </div>
   );
 }
+
+// Server Side Props to pre-fetch data
+export const getServerSideProps: GetServerSideProps = async (context) => {
+  const { id } = context.params as { id: string };
+
+  try {
+    // Fetch story directly from the database for SSR
+    const story = await prisma.story.findUnique({
+      where: { id },
+      include: {
+        creator: {
+          select: {
+            id: true,
+            username: true,
+          },
+        },
+      },
+    });
+
+    if (!story) {
+      return {
+        notFound: true, // This will show the 404 page
+      };
+    }
+
+    // Fetch story sentences
+    const sentences = await prisma.storySentence.findMany({
+      where: { storyId: id },
+      orderBy: { position: "asc" },
+      include: {
+        author: {
+          select: {
+            id: true,
+            username: true,
+          },
+        },
+      },
+    });
+
+    // Calculate current voting round
+    const currentRoundPosition = sentences.length + 1;
+
+    // Get submissions for current round
+    const submissions = await prisma.submission.findMany({
+      where: {
+        storyId: id,
+        votingRound: currentRoundPosition,
+      },
+      include: {
+        author: {
+          select: {
+            id: true,
+            username: true,
+          },
+        },
+        votes: true,
+      },
+    });
+
+    // Format the response data to match what the client expects
+    const formattedStory = {
+      id: story.id,
+      title: story.title,
+      subtitle: story.subtitle,
+      genre: story.genre,
+      first_sentence: story.firstSentence,
+      created_by: story.createdById,
+      min_sentences: story.minSentences,
+      voting_period_days: story.votingPeriodDays,
+      submission_period_hours: story.submissionPeriodHours,
+      created_at: story.createdAt.toISOString(),
+      updated_at: story.updatedAt.toISOString(),
+      creator: story.creator,
+    };
+
+    const formattedSentences = sentences.map((sentence) => ({
+      id: sentence.id,
+      story_id: sentence.storyId,
+      content: sentence.content,
+      position: sentence.position,
+      submitted_by: sentence.submittedBy,
+      created_at: sentence.createdAt.toISOString(),
+      author: sentence.author,
+    }));
+
+    const initialStoryData = {
+      story: formattedStory,
+      sentences: formattedSentences,
+      current_round: {
+        position: currentRoundPosition,
+        submissions: submissions.map(sub => ({
+          id: sub.id,
+          content: sub.content,
+          votes_count: sub.votes.length,
+        })),
+        total_votes: submissions.reduce((sum, sub) => sum + sub.votes.length, 0),
+      },
+    };
+
+    return {
+      props: {
+        initialStoryData,
+      },
+    };
+  } catch (error) {
+    console.error("Error in getServerSideProps:", error);
+    return {
+      props: {
+        initialStoryData: null,
+        initialError: "Failed to load story data",
+      },
+    };
+  }
+};

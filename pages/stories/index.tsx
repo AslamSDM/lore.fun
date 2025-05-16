@@ -1,33 +1,43 @@
-"use client"
-
 import Link from "next/link"
 import { useState, useEffect } from "react"
 import type { Story } from "../../lib/types"
+import { GetServerSideProps } from "next"
+import { prisma } from "../../lib/prisma"
 
-export default function StoriesPage() {
-  const [stories, setStories] = useState<Story[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+interface StoriesPageProps {
+  initialStories: Story[];
+  initialError?: string;
+}
+
+export default function StoriesPage({ initialStories, initialError = "" }: StoriesPageProps) {
+  const [stories, setStories] = useState<Story[]>(initialStories)
+  const [loading, setLoading] = useState(initialStories.length === 0 && !initialError)
+  const [error, setError] = useState<string | null>(initialError)
 
   useEffect(() => {
-    const fetchStories = async () => {
-      try {
-        const response = await fetch("/api/stories")
-        if (!response.ok) {
-          throw new Error("Failed to fetch stories")
+    // We only need to fetch data if we don't have initial data from SSR
+    // or if there was an error that needs refresh
+    if (initialStories.length === 0 || initialError) {
+      const fetchStories = async () => {
+        try {
+          const response = await fetch("/api/stories")
+          if (!response.ok) {
+            throw new Error("Failed to fetch stories")
+          }
+          const data = await response.json()
+          setStories(data)
+          setError(null)
+        } catch (err) {
+          setError("Error loading stories. Please try again later.")
+          console.error(err)
+        } finally {
+          setLoading(false)
         }
-        const data = await response.json()
-        setStories(data)
-      } catch (err) {
-        setError("Error loading stories. Please try again later.")
-        console.error(err)
-      } finally {
-        setLoading(false)
       }
-    }
 
-    fetchStories()
-  }, [])
+      fetchStories()
+    }
+  }, [initialStories, initialError])
 
   if (loading) {
     return (
@@ -125,3 +135,73 @@ export default function StoriesPage() {
     </div>
   )
 }
+
+// Server Side Props to pre-fetch data
+export const getServerSideProps: GetServerSideProps = async () => {
+  try {
+    // Get all stories with related data using optimized queries
+    const stories = await prisma.story.findMany({
+      include: {
+        creator: {
+          select: {
+            id: true,
+            username: true,
+          },
+        },
+        _count: {
+          select: {
+            sentences: true, // Count sentences efficiently
+          },
+        },
+        sentences: {
+          select: {
+            id: true,
+            submittedBy: true,
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    // Process stories to get the expected format with better performance
+    const processedData = stories.map((story) => {
+      // Get unique contributors more efficiently
+      const uniqueContributors = new Set<string>();
+      story.sentences.forEach((sentence) => {
+        uniqueContributors.add(sentence.submittedBy);
+      });
+
+      // Format response to match expected structure
+      return {
+        id: story.id,
+        title: story.title,
+        subtitle: story.subtitle,
+        genre: story.genre,
+        first_sentence: story.firstSentence,
+        created_by: story.createdById,
+        min_sentences: story.minSentences,
+        voting_period_days: story.votingPeriodDays,
+        submission_period_hours: story.submissionPeriodHours,
+        created_at: story.createdAt.toISOString(),
+        updated_at: story.updatedAt.toISOString(),
+        creator: story.creator,
+        sentences_count: story._count.sentences, // Use the more efficient count
+        contributors_count: uniqueContributors.size,
+      };
+    });
+
+    return {
+      props: {
+        initialStories: processedData,
+      },
+    };
+  } catch (error) {
+    console.error("Error in getServerSideProps:", error);
+    return {
+      props: {
+        initialStories: [],
+        initialError: "Failed to load stories",
+      },
+    };
+  }
+};
