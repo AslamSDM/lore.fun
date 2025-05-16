@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import { prisma } from "./prisma";
 
 export class UserService {
   // Get a user by wallet address
