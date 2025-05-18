@@ -20,6 +20,7 @@ import { useMemo } from "react";
 import "@solana/wallet-adapter-react-ui/styles.css";
 import { WalletProvider } from "@/components/wallet-provider";
 import Layout from "@/components/layout";
+import { ThemeProvider } from "@/components/theme-provider";
 
 function MyApp({ Component, pageProps }: AppProps) {
   // Set up Solana network and wallets
@@ -52,17 +53,19 @@ function MyApp({ Component, pageProps }: AppProps) {
   // }, []);
 
   return (
-    <ConnectionProvider endpoint={endpoint}>
-      <SolanaWalletProvider wallets={wallets} autoConnect>
-        <WalletModalProvider>
-          <WalletProvider>
-            <Layout>
-              <Component {...pageProps} />
-            </Layout>
-          </WalletProvider>
-        </WalletModalProvider>
-      </SolanaWalletProvider>
-    </ConnectionProvider>
+    <ThemeProvider>
+      <ConnectionProvider endpoint={endpoint}>
+        <SolanaWalletProvider wallets={wallets} autoConnect>
+          <WalletModalProvider>
+            <WalletProvider>
+              <Layout>
+                <Component {...pageProps} />
+              </Layout>
+            </WalletProvider>
+          </WalletModalProvider>
+        </SolanaWalletProvider>
+      </ConnectionProvider>
+    </ThemeProvider>
   );
 }
 

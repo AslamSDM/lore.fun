@@ -32,21 +32,21 @@ export const HeroSection = ({
   connected = false,
 }: HeroSectionProps) => {
   return (
-    <section className="py-16 md:py-24">
+    <section className="py-16 md:py-24 bg-background">
       <div className="container mx-auto px-4">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           <div>
             <AnimatedHeading
               el="h1"
-              className="text-4xl md:text-6xl font-bold mb-6 font-medieval2"
+              className="text-4xl md:text-6xl font-bold mb-6 font-medieval2 text-primary-foreground"
             >
               {title}
             </AnimatedHeading>
 
             <ScrollTextAnimation delay={0.2} className="space-y-4">
-              <p className="text-xl text-gray-300 mb-8">{subtitle}</p>
+              <p className="text-xl text-muted-foreground mb-8">{subtitle}</p>
               <div className="flex flex-wrap gap-4">
-                <Link href={primaryButtonLink}>
+                <Link href={primaryButtonLink} className="no-underline">
                   <Button
                     variant="default"
                     size="lg"

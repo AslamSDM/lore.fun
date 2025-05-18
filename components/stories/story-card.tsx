@@ -31,46 +31,45 @@ export const StoryCard = ({ story, index = 0 }: StoryCardProps) => {
     <Link
       href={`/stories/${story.id}`}
       key={story.id}
-      className="card hover:border-primary transition-all block"
+      className="block no-underline"
     >
-      <div className="mb-4">
-        <h2 className="text-xl font-bold">{story.title}</h2>
-        <p className="text-gray-400">{story.subtitle || story.genre}</p>
-      </div>
+      <Card className="hover:border-primary transition-all h-full">
+        <CardHeader className="pb-2">
+          <CardTitle>{story.title}</CardTitle>
+          <CardDescription>{story.subtitle || story.genre}</CardDescription>
+        </CardHeader>
 
-      <div className="mb-4">
-        <div className="flex justify-between text-sm mb-1">
-          <span>Progress</span>
-          <span>{progress}%</span>
-        </div>
-        <div className="progress-bar">
-          <div
-            className="progress-value"
-            style={{ width: `${progress}%` }}
-          ></div>
-        </div>
-      </div>
+        <CardContent className="space-y-4">
+          <div>
+            <div className="flex justify-between text-sm mb-1">
+              <span>Progress</span>
+              <span>{progress}%</span>
+            </div>
+            <Progress value={progress} className="h-2" />
+          </div>
 
-      <div className="grid grid-cols-2 gap-4 text-sm">
-        <div>
-          <p className="text-gray-400">Sentences</p>
-          <p className="font-medium">{story.sentences_count || 0}</p>
-        </div>
-        <div>
-          <p className="text-gray-400">Contributors</p>
-          <p className="font-medium">{story.contributors_count || 0}</p>
-        </div>
-        <div>
-          <p className="text-gray-400">Genre</p>
-          <p className="font-medium">{story.genre}</p>
-        </div>
-        <div>
-          <p className="text-gray-400">Created</p>
-          <p className="font-medium">
-            {new Date(story.created_at).toLocaleDateString()}
-          </p>
-        </div>
-      </div>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <p className="text-muted-foreground">Sentences</p>
+              <p className="font-medium">{story.sentences_count || 0}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">Contributors</p>
+              <p className="font-medium">{story.contributors_count || 0}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">Genre</p>
+              <p className="font-medium">{story.genre}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">Created</p>
+              <p className="font-medium">
+                {new Date(story.created_at).toLocaleDateString()}
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </Link>
   );
 };

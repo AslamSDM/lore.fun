@@ -18,7 +18,7 @@ export default function Layout({ children }: LayoutProps) {
         />
         <link rel="icon" href="/favicon.ico" />
       </Head>
-      <div className="min-h-screen flex flex-col">
+      <div className="min-h-screen flex flex-col bg-background text-foreground">
         <Navbar />
         <main className="flex-grow">{children}</main>
         <Footer />
