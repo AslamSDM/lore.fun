@@ -17,26 +17,30 @@ export default function SignMessageModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-70">
-      <div className="bg-gray-900 border border-gray-700 rounded-lg shadow-xl w-full max-w-md p-6">
-        <h2 className="text-xl font-bold mb-4">Verify Wallet Ownership</h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
+      <div className="bg-card border border-border rounded-lg shadow-xl w-full max-w-md p-6">
+        <h2 className="text-xl font-bold mb-4 text-card-foreground">
+          Verify Wallet Ownership
+        </h2>
 
         <div className="mb-6">
-          <p className="text-gray-300 mb-4">
+          <p className="text-muted-foreground mb-4">
             Please sign the message with your wallet to verify your ownership.
             This is a secure way to authenticate without sharing private keys.
           </p>
 
-          <div className="bg-gray-800 p-3 rounded border border-gray-700 mb-4">
-            <p className="text-sm text-gray-400 mb-1">Message to sign:</p>
-            <p className="text-white break-all">
+          <div className="bg-secondary p-3 rounded border border-border mb-4">
+            <p className="text-sm text-muted-foreground mb-1">
+              Message to sign:
+            </p>
+            <p className="text-secondary-foreground break-all">
               Sign this message to verify your wallet ownership for LoreFun:{" "}
               {walletAddress.substring(0, 8)}...
               {walletAddress.substring(walletAddress.length - 8)}
             </p>
           </div>
 
-          <div className="flex items-center text-yellow-400 mb-2">
+          <div className="flex items-center text-amber-500 mb-2">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               className="h-5 w-5 mr-2"

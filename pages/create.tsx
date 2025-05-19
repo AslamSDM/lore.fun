@@ -1,21 +1,28 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
 import { useWallet } from "../hooks/use-wallet";
+import { useTokenBalance } from "@/hooks/use-token-balance";
+import { useTokenRequirements } from "@/lib/token-requirements";
+import { useNotifications } from "@/hooks/use-notifications";
 import { StoriesAPI } from "../lib/api-client";
 
 export default function CreateStoryPage() {
   const router = useRouter();
   const { publicKey, connected, connect } = useWallet();
+  const { balance } = useTokenBalance();
+  const tokenReqs = useTokenRequirements();
+  const { notifyWarning, notifyError, notifySuccess, notifyInfo } =
+    useNotifications();
   const [title, setTitle] = useState("");
   const [subtitle, setSubtitle] = useState("");
   const [firstSentence, setFirstSentence] = useState("");
   const [genre, setGenre] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState("");
-  console.log("connected", connected);
+
   const handleCreate = async () => {
     if (!connected) {
       // Clear any previous errors when initiating connection
@@ -25,7 +32,14 @@ export default function CreateStoryPage() {
     }
 
     if (!title || !firstSentence || !genre) {
-      setError("Please fill in all required fields.");
+      notifyWarning("Please fill in all required fields.", "Incomplete Form");
+      return;
+    }
+    if (balance < tokenReqs.minTokensToCreate) {
+      notifyWarning(
+        `You need at least ${tokenReqs.minTokensToCreate} LORE tokens to create a new story. You currently have ${balance} LORE.`,
+        "Insufficient Tokens"
+      );
       return;
     }
 
@@ -35,6 +49,7 @@ export default function CreateStoryPage() {
 
       // Ensure publicKey is available
       if (!publicKey) {
+        notifyError("Wallet not connected properly", "Connection Error");
         throw new Error("Wallet not connected properly");
       }
 
@@ -47,9 +62,15 @@ export default function CreateStoryPage() {
         created_by: publicKey.toString(),
       });
 
+      notifySuccess(
+        "Your story has been created successfully!",
+        "Story Created"
+      );
       router.push(`/stories/${story.id}`);
     } catch (err) {
-      setError((err as Error).message || "Error creating story");
+      const errorMessage = (err as Error).message || "Error creating story";
+      notifyError(errorMessage, "Creation Failed");
+      setError(errorMessage); // Keep for UI display if needed
       console.error(err);
       setIsCreating(false);
     }
@@ -163,11 +184,7 @@ export default function CreateStoryPage() {
           </div>
         </div>
 
-        {error && (
-          <div className="bg-red-900 bg-opacity-30 border border-red-500 text-red-300 px-4 py-3 rounded my-6">
-            {error}
-          </div>
-        )}
+        {/* Error messages are now shown via toast notifications */}
 
         <button
           onClick={handleCreate}
