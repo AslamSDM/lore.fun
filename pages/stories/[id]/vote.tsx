@@ -23,6 +23,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Loader2 } from "lucide-react";
+import { useNotifications } from "@/hooks/use-notifications";
 
 interface StoryData {
   story: Story;
@@ -47,7 +48,10 @@ export default function VotePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [voteSuccess, setVoteSuccess] = useState(false);
-
+  const { balance, solBalance } = useTokenBalance();
+  const tokenReqs = useTokenRequirements();
+  const { notifyWarning, notifyError, notifySuccess, notifyInfo } =
+    useNotifications();
   useEffect(() => {
     const fetchStory = async () => {
       if (!id) return;
@@ -79,7 +83,9 @@ export default function VotePage() {
           }
         }
       } catch (err) {
-        setError((err as Error).message || "Error loading story");
+        const errorMsg = (err as Error).message || "Error loading story";
+        notifyError(errorMsg, "Failed to Load");
+        setError(errorMsg); // Keep this for UI display
         console.error(err);
       } finally {
         setLoading(false);
@@ -90,6 +96,7 @@ export default function VotePage() {
       fetchStory();
     }
   }, [id, user]);
+  console.log("Story Data:", balance, tokenReqs.minTokensToVote);
 
   const handleVote = async () => {
     if (!connected) {
@@ -98,12 +105,23 @@ export default function VotePage() {
     }
 
     if (!user) {
-      setError("Please connect your wallet to vote");
+      notifyWarning("Please connect your wallet to vote", "Wallet Required");
       return;
     }
 
     if (selectedSubmission === null) {
-      setError("Please select a submission to vote");
+      notifyWarning("Please select a submission to vote", "Selection Required");
+      return;
+    }
+    if (balance < tokenReqs.minTokensToVote) {
+      notifyWarning(
+        `You need at least ${tokenReqs.minTokensToVote} LORE tokens to vote. You currently have ${balance} LORE.`,
+        "Insufficient Tokens"
+      );
+      return;
+    }
+    if (hasVoted) {
+      notifyInfo("You have already voted in this round", "Already Voted");
       return;
     }
 
@@ -120,6 +138,10 @@ export default function VotePage() {
 
         setVoteSuccess(true);
         setHasVoted(true);
+        notifySuccess(
+          "Your vote has been submitted successfully!",
+          "Vote Recorded"
+        );
 
         // Check if the round can be ended after this vote
         try {
@@ -168,7 +190,10 @@ export default function VotePage() {
           setHasVoted(true);
 
           // Show a different message
-          setError("You have already voted for a submission in this round");
+          notifyInfo(
+            "You have already voted for a submission in this round",
+            "Already Voted"
+          );
 
           // Still redirect after a short delay
           setTimeout(() => {
@@ -180,7 +205,10 @@ export default function VotePage() {
         throw apiError;
       }
     } catch (err) {
-      setError((err as Error).message || "Error submitting vote");
+      notifyError(
+        (err as Error).message || "Error submitting vote",
+        "Vote Failed"
+      );
       console.error(err);
     } finally {
       setIsSubmitting(false);
@@ -455,15 +483,7 @@ export default function VotePage() {
             </ScrollAnimation>
           )}
 
-          {error && !voteSuccess && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="bg-red-900/30 border border-red-500 text-red-300 px-4 py-3 rounded mb-6"
-            >
-              {error}
-            </motion.div>
-          )}
+          {/* Error messages are now shown via toast notifications */}
 
           {current_round.submissions.length > 0 && (
             <div className="flex items-center justify-between mt-6">
@@ -569,7 +589,12 @@ export default function VotePage() {
 }
 
 // Add getServerSideProps at the end of the file
-export const getServerSideProps = async (context) => {
+import { GetServerSidePropsContext } from "next";
+import { useTokenRequirements } from "@/lib/token-requirements";
+import { useTokenBalance } from "@/hooks/use-token-balance";
+export const getServerSideProps = async (
+  context: GetServerSidePropsContext
+) => {
   const { id } = context.params as { id: string };
 
   // Enable caching for 15 seconds on this page (shorter because voting can change quickly)

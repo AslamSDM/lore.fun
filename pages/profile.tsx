@@ -22,9 +22,15 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
+import { useNotifications } from "@/hooks/use-notifications";
+import { useTokenBalance } from "@/hooks/use-token-balance";
+import { useTokenRequirements } from "@/lib/token-requirements";
 
 export default function ProfilePage() {
-  const { user, loading, refreshUser, balance } = useWallet();
+  const { user, loading, refreshUser } = useWallet();
+  const { balance, solBalance } = useTokenBalance();
+  const tokenReqs = useTokenRequirements();
+  const { notifyWarning, notifySuccess, notifyInfo } = useNotifications();
   const router = useRouter();
   const [stats, setStats] = useState<UserStats | null>(null);
   const [stories, setStories] = useState<Story[]>([]);
@@ -33,6 +39,19 @@ export default function ProfilePage() {
   const [username, setUsername] = useState("");
   const [usernameError, setUsernameError] = useState("");
   const [updatingUsername, setUpdatingUsername] = useState(false);
+
+  // Helper function to replace checkTokenRequirement
+  const handleCreateStory = () => {
+    if (
+      tokenReqs.checkAction("create", balance, () => {
+        notifyInfo(
+          `You need at least ${tokenReqs.minTokensToCreate} LORE tokens to create a story.`
+        );
+      })
+    ) {
+      router.push("/create");
+    }
+  };
 
   useEffect(() => {
     // Redirect if not logged in
@@ -83,7 +102,11 @@ export default function ProfilePage() {
 
     // Validate username
     if (username.length < 3) {
-      setUsernameError("Username must be at least 3 characters");
+      notifyWarning(
+        "Username must be at least 3 characters",
+        "Username Too Short"
+      );
+      setUsernameError("Username must be at least 3 characters"); // Keep for UI display
       return;
     }
 
@@ -98,11 +121,19 @@ export default function ProfilePage() {
         // Refresh the user data to get the updated username
         await refreshUser();
         setEditingUsername(false);
+        notifySuccess(
+          "Username has been updated successfully!",
+          "Username Updated"
+        );
       } else {
-        setUsernameError(result.error || "Failed to update username");
+        const errorMsg = result.error || "Failed to update username";
+        notifyError(errorMsg, "Update Failed");
+        setUsernameError(errorMsg); // Keep for UI display
       }
     } catch (error) {
-      setUsernameError((error as Error).message);
+      const errorMsg = (error as Error).message;
+      notifyError(errorMsg, "Update Error");
+      setUsernameError(errorMsg); // Keep for UI display
     } finally {
       setUpdatingUsername(false);
     }
@@ -263,18 +294,24 @@ export default function ProfilePage() {
                   <p className="text-muted-foreground text-sm mb-2">
                     Wallet Balance
                   </p>
-                  <div className="flex items-center">
-                    <svg
-                      className="h-6 w-6 text-primary mr-2"
-                      viewBox="0 0 24 24"
-                      fill="currentColor"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
-                    </svg>
-                    <span className="font-bold text-xl">
-                      {balance || 0} <span className="text-primary">LORE</span>
-                    </span>
+                  <div className="flex flex-col">
+                    <div className="flex items-center">
+                      <svg
+                        className="h-6 w-6 text-primary mr-2"
+                        viewBox="0 0 24 24"
+                        fill="currentColor"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
+                      </svg>
+                      <span className="font-bold text-xl">
+                        {balance || 0}{" "}
+                        <span className="text-primary">LORE</span>
+                      </span>
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      SPL token balance on Solana
+                    </div>
                   </div>
                 </div>
               </div>
@@ -344,12 +381,23 @@ export default function ProfilePage() {
                   My Stories
                 </CardTitle>
                 <Button
-                  asChild
                   variant="default"
                   size="sm"
                   className="bg-primary hover:bg-primary/80"
+                  onClick={() => {
+                    // Check if user has enough tokens to create a story
+                    if (
+                      tokenReqs.checkAction("create", balance, () => {
+                        notifyInfo(
+                          `You need at least ${tokenReqs.minTokensToCreate} LORE tokens to create a story.`
+                        );
+                      })
+                    ) {
+                      router.push("/create");
+                    }
+                  }}
                 >
-                  <Link href="/create">Create New Story</Link>
+                  Create New Story
                 </Button>
               </div>
             </CardHeader>
@@ -408,11 +456,22 @@ export default function ProfilePage() {
                     You haven't created any stories yet.
                   </p>
                   <Button
-                    asChild
                     variant="default"
                     className="bg-primary hover:bg-primary/80"
+                    onClick={() => {
+                      // Check if user has enough tokens to create a story
+                      if (
+                        tokenReqs.checkAction("create", balance, () => {
+                          notifyInfo(
+                            `You need at least ${tokenReqs.minTokensToCreate} LORE tokens to create a story.`
+                          );
+                        })
+                      ) {
+                        router.push("/create");
+                      }
+                    }}
                   >
-                    <Link href="/create">Create Your First Story</Link>
+                    Create Your First Story
                   </Button>
                 </div>
               )}

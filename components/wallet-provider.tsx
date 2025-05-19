@@ -9,6 +9,14 @@ import SignMessageModal from "./sign-message-modal";
 import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { useAuthStore } from "../lib/auth-store";
 import { AuthAPI, UsersAPI } from "../lib/api-client";
+import { useConnection } from "@solana/wallet-adapter-react";
+import { toast } from "@/components/ui/use-toast";
+import {
+  useTokenBalance,
+  MIN_TOKENS_TO_VOTE,
+  MIN_TOKENS_TO_SUBMIT,
+  MIN_TOKENS_TO_CREATE,
+} from "@/hooks/use-token-balance";
 
 interface WalletContextType {
   connected: boolean;
@@ -17,6 +25,7 @@ interface WalletContextType {
   connect: () => Promise<void>;
   disconnect: () => void;
   balance: number;
+  solBalance: number;
   updateBalance: (newBalance: number) => void;
   user: User | null;
   loading: boolean;
@@ -24,7 +33,9 @@ interface WalletContextType {
     username: string
   ) => Promise<{ success: boolean; error: string | null }>;
   refreshUser: () => Promise<void>;
+  checkTokenRequirement: (action: "vote" | "submit" | "create") => boolean;
 }
+
 export const WalletContext = createContext<WalletContextType>({
   connected: false,
   connecting: false,
@@ -32,22 +43,51 @@ export const WalletContext = createContext<WalletContextType>({
   connect: async () => {},
   disconnect: () => {},
   balance: 0,
+  solBalance: 0,
   updateBalance: () => {},
   user: null,
   loading: true,
   setUsername: async () => ({ success: false, error: null }),
-  refreshUser: async () => {}, // Add this
-  updateBalance: () => {}, // Add this
+  refreshUser: async () => {},
+  checkTokenRequirement: () => false,
 });
 
 export function WalletProvider({ children }: { children: ReactNode }) {
   const solanaWallet = useSolanaWallet();
+  const { connection } = useConnection();
   const { setVisible } = useWalletModal();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [showUsernameModal, setShowUsernameModal] = useState(false);
   const [showSignMessageModal, setShowSignMessageModal] = useState(false);
+
+  // Use our token balance hook instead of managing the state here
+  const {
+    balance: tokenBalance,
+    solBalance: solanaTokenBalance,
+    refresh: refreshBalance,
+  } = useTokenBalance();
+
+  // Keep the original state variables for compatibility with existing code
   const [balance, setBalance] = useState(0);
+  const [solBalance, setSolBalance] = useState(0);
+
+  // Update the local state variables when the hook values change
+  useEffect(() => {
+    if (solanaWallet.connected) {
+      setBalance(tokenBalance);
+      setSolBalance(solanaTokenBalance);
+
+      // Show balance notification when connected and balance changes
+      if (tokenBalance > 0) {
+        toast({
+          title: "Balance Updated",
+          description: `Your wallet contains ${tokenBalance} LORE tokens`,
+          duration: 3000,
+        });
+      }
+    }
+  }, [tokenBalance, solanaTokenBalance, solanaWallet.connected]);
 
   const {
     isAuthenticating,
@@ -55,7 +95,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     authError,
     setAuthError,
     resetAuthState,
-  } = useAuthStore(); // Handle wallet connection
+  } = useAuthStore();
+
+  // Handle wallet connection
   useEffect(() => {
     const handleWalletConnection = async () => {
       if (solanaWallet.connected && solanaWallet.publicKey) {
@@ -87,12 +129,11 @@ export function WalletProvider({ children }: { children: ReactNode }) {
             signature = await solanaWallet.signMessage(encodedMessage);
           } catch (signError) {
             // Specific handling for user rejection
-
             setShowSignMessageModal(false);
             setAuthError("User rejected signature");
-
             return;
           }
+
           // Hide the modal once signature is completed
           setShowSignMessageModal(false);
 
@@ -118,9 +159,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           if (!dbUser.username) {
             setShowUsernameModal(true);
           }
-
-          // Mock balance for now
-          setBalance(250);
         } catch (error) {
           console.error("Error handling wallet connection:", error);
           setAuthError((error as Error).message);
@@ -158,7 +196,15 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       solanaWallet.disconnect();
     }
     setUser(null);
+    setBalance(0);
+    setSolBalance(0);
     resetAuthState();
+
+    // Show disconnect notification
+    toast({
+      title: "Wallet Disconnected",
+      description: "Your wallet has been disconnected.",
+    });
   };
 
   const handleSetUsername = async (
@@ -198,9 +244,62 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Function to update the wallet balance
+  // Function to update the wallet balance manually
   const updateBalance = (newBalance: number) => {
     setBalance(newBalance);
+
+    // Also refresh the token balance from the hook
+    refreshBalance();
+  };
+
+  // Check token requirements for different actions
+  const checkTokenRequirement = (
+    action: "vote" | "submit" | "create"
+  ): boolean => {
+    // First check if the user is connected
+    if (!solanaWallet.connected || !solanaWallet.publicKey) {
+      toast({
+        title: "Wallet Not Connected",
+        description: "Please connect your wallet first.",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    switch (action) {
+      case "vote":
+        if (balance < MIN_TOKENS_TO_VOTE) {
+          toast({
+            title: "Insufficient Tokens",
+            description: `You need at least ${MIN_TOKENS_TO_VOTE} LORE tokens to vote on submissions.`,
+            variant: "destructive",
+          });
+          return false;
+        }
+        return true;
+      case "submit":
+        if (balance < MIN_TOKENS_TO_SUBMIT) {
+          toast({
+            title: "Insufficient Tokens",
+            description: `You need at least ${MIN_TOKENS_TO_SUBMIT} LORE tokens to submit a new sentence.`,
+            variant: "destructive",
+          });
+          return false;
+        }
+        return true;
+      case "create":
+        if (balance < MIN_TOKENS_TO_CREATE) {
+          toast({
+            title: "Insufficient Tokens",
+            description: `You need at least ${MIN_TOKENS_TO_CREATE} LORE tokens to create a new story.`,
+            variant: "destructive",
+          });
+          return false;
+        }
+        return true;
+      default:
+        return false;
+    }
   };
 
   return (
@@ -212,11 +311,13 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         connect,
         disconnect,
         balance,
+        solBalance,
         user,
         loading,
         setUsername: handleSetUsername,
         refreshUser,
         updateBalance,
+        checkTokenRequirement,
       }}
     >
       {children}

@@ -22,6 +22,7 @@ import "@solana/wallet-adapter-react-ui/styles.css";
 import { WalletProvider } from "@/components/wallet-provider";
 import Layout from "@/components/layout";
 import { ThemeProvider } from "@/components/theme-provider";
+import { Toaster } from "@/components/ui/toaster";
 
 function MyApp({ Component, pageProps }: AppProps) {
   // Set up Solana network and wallets
@@ -61,6 +62,7 @@ function MyApp({ Component, pageProps }: AppProps) {
             <WalletProvider>
               <Layout>
                 <Component {...pageProps} />
+                <Toaster />
               </Layout>
             </WalletProvider>
           </WalletModalProvider>

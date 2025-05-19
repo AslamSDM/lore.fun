@@ -24,6 +24,9 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { Loader2 } from "lucide-react";
+import { useTokenBalance } from "@/hooks/use-token-balance";
+import { useTokenRequirements } from "@/lib/token-requirements";
+import { useNotifications } from "@/hooks/use-notifications";
 
 interface StoryData {
   story: Story;
@@ -57,6 +60,10 @@ export default function SubmitPage({
   const [error, setError] = useState(initialError);
   const [loading, setLoading] = useState(!initialStoryData);
   const [submitSuccess, setSubmitSuccess] = useState(false);
+  const { balance } = useTokenBalance();
+  const tokenReq = useTokenRequirements();
+  const { notifyWarning, notifyError, notifySuccess, notifyInfo } =
+    useNotifications();
 
   // Only fetch if we don't have initial data from SSR
   useEffect(() => {
@@ -72,7 +79,9 @@ export default function SubmitPage({
         )) as unknown as StoryData;
         setStoryData(data);
       } catch (err) {
-        setError((err as Error).message || "Error loading story");
+        const errorMsg = (err as Error).message || "Error loading story";
+        notifyError(errorMsg, "Failed to Load");
+        setError(errorMsg); // Keep this for UI display
         console.error(err);
       } finally {
         setLoading(false);
@@ -100,12 +109,22 @@ export default function SubmitPage({
     }
 
     if (!user) {
-      setError("Please connect your wallet to submit");
+      notifyWarning("Please connect your wallet to submit", "Wallet Required");
       return;
     }
 
     if (wordCount < 10 || wordCount > 50) {
-      setError("Your submission must be between 10-50 words.");
+      notifyWarning(
+        "Your submission must be between 10-50 words.",
+        "Invalid Submission Length"
+      );
+      return;
+    }
+    if (balance < tokenReq.minTokensToSubmit) {
+      notifyWarning(
+        `You need at least ${tokenReq.minTokensToSubmit} LORE tokens to submit.`,
+        "Insufficient Tokens"
+      );
       return;
     }
 
@@ -122,13 +141,21 @@ export default function SubmitPage({
       });
 
       setSubmitSuccess(true);
+      notifySuccess(
+        "Your continuation has been submitted successfully!",
+        "Submission Successful"
+      );
 
       // Redirect back to story page after successful submission
       setTimeout(() => {
         router.push(`/stories/${id}`);
       }, 2000);
     } catch (err) {
-      setError((err as Error).message || "Error submitting continuation");
+      notifyError(
+        (err as Error).message || "Error submitting continuation",
+        "Submission Failed"
+      );
+      setError((err as Error).message || "Error submitting continuation"); // Keep this for showing in UI
       console.error(err);
     } finally {
       setIsSubmitting(false);
@@ -410,15 +437,7 @@ export default function SubmitPage({
                 />
               </div>
 
-              {error && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="bg-red-900/30 border border-red-500 text-red-300 px-4 py-3 rounded mb-6"
-                >
-                  {error}
-                </motion.div>
-              )}
+              {/* Error messages are now shown via toast notifications */}
 
               <div className="flex justify-between mt-6">
                 <Button

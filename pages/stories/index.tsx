@@ -10,6 +10,10 @@ import {
 } from "@/components/animations/scroll-animation";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
+import { useWallet } from "@/hooks/use-wallet";
+import { useNotifications } from "@/hooks/use-notifications";
+import { useTokenBalance } from "@/hooks/use-token-balance";
+import { useTokenRequirements } from "@/lib/token-requirements";
 
 interface StoriesPageProps {
   initialStories: Story[];
@@ -20,6 +24,10 @@ export default function StoriesPage({
   initialStories,
   initialError = "",
 }: StoriesPageProps) {
+  const { connected } = useWallet();
+  const { balance } = useTokenBalance();
+  const tokenReqs = useTokenRequirements();
+  const { notifyWarning, notifyInfo } = useNotifications();
   const [stories, setStories] = useState<Story[]>(initialStories);
   const [loading, setLoading] = useState(
     initialStories.length === 0 && !initialError
@@ -90,11 +98,30 @@ export default function StoriesPage({
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.3 }}
         >
-          <Link href="/create">
-            <Button className="bg-primary hover:bg-primary/90">
-              Create New Story
-            </Button>
-          </Link>
+          <Button
+            className="bg-primary hover:bg-primary/90"
+            onClick={() => {
+              if (!connected) {
+                notifyWarning(
+                  "Please connect your wallet first",
+                  "Wallet Required"
+                );
+                return;
+              }
+              // Check if user has enough tokens to create a story
+              if (
+                tokenReqs.checkAction("create", balance, () => {
+                  notifyInfo(
+                    `You need at least ${tokenReqs.minTokensToCreate} LORE tokens to create a new story.`
+                  );
+                })
+              ) {
+                window.location.href = "/create";
+              }
+            }}
+          >
+            Create New Story
+          </Button>
         </motion.div>
       </div>
 
@@ -108,12 +135,31 @@ export default function StoriesPage({
           <ScrollAnimation>
             <p className="text-gray-400 mb-4">
               No stories found. Be the first to create one!
-            </p>
-            <Link href="/create">
-              <Button className="bg-primary hover:bg-primary/90">
-                Create New Story
-              </Button>
-            </Link>
+            </p>{" "}
+            <Button
+              className="bg-primary hover:bg-primary/90"
+              onClick={() => {
+                if (!connected) {
+                  notifyWarning(
+                    "Please connect your wallet first",
+                    "Wallet Required"
+                  );
+                  return;
+                }
+                // Check if user has enough tokens to create a story
+                if (
+                  tokenReqs.checkAction("create", balance, () => {
+                    notifyInfo(
+                      `You need at least ${tokenReqs.minTokensToCreate} LORE tokens to create a new story.`
+                    );
+                  })
+                ) {
+                  window.location.href = "/create";
+                }
+              }}
+            >
+              Create New Story
+            </Button>
           </ScrollAnimation>
         </motion.div>
       ) : (

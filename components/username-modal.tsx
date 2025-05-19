@@ -1,6 +1,7 @@
 import type React from "react";
 import { useState } from "react";
 import { useWallet } from "../hooks/use-wallet";
+import { useNotifications } from "@/hooks/use-notifications";
 
 interface UsernameModalProps {
   isOpen: boolean;
@@ -12,6 +13,7 @@ export default function UsernameModal({ isOpen, onClose }: UsernameModalProps) {
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { setUsername: saveUsername } = useWallet();
+  const { notifyWarning, notifyError, notifySuccess } = useNotifications();
 
   if (!isOpen) return null;
 
@@ -19,17 +21,26 @@ export default function UsernameModal({ isOpen, onClose }: UsernameModalProps) {
     e.preventDefault();
 
     if (!username.trim()) {
-      setError("Username is required");
+      notifyWarning("Username is required", "Missing Username");
+      setError("Username is required"); // Keep for UI display
       return;
     }
 
     if (username.length < 3) {
-      setError("Username must be at least 3 characters");
+      notifyWarning(
+        "Username must be at least 3 characters",
+        "Username Too Short"
+      );
+      setError("Username must be at least 3 characters"); // Keep for UI display
       return;
     }
 
     if (!/^[a-zA-Z0-9_]+$/.test(username)) {
-      setError("Username can only contain letters, numbers, and underscores");
+      notifyWarning(
+        "Username can only contain letters, numbers, and underscores",
+        "Invalid Characters"
+      );
+      setError("Username can only contain letters, numbers, and underscores"); // Keep for UI display
       return;
     }
 
@@ -39,11 +50,13 @@ export default function UsernameModal({ isOpen, onClose }: UsernameModalProps) {
     const { success, error } = await saveUsername(username);
 
     if (!success && error) {
-      setError(error);
+      notifyError(error, "Username Update Failed");
+      setError(error); // Keep for UI display
       setIsSubmitting(false);
       return;
     }
 
+    notifySuccess("Username has been set successfully!", "Username Updated");
     setIsSubmitting(false);
     onClose();
   };
