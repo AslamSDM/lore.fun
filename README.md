@@ -16,7 +16,7 @@ LoreFun uses a secure, signature-based authentication system with Solana wallets
 For detailed information on the authentication implementation, see [SOLANA_AUTH.md](./SOLANA_AUTH.md).
 
 ### Automated Round Endings
-
+ 
 LoreFun features an automated round ending system that:
 
 - Automatically detects when a voting round has ended based on time
