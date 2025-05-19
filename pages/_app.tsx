@@ -1,6 +1,7 @@
 "use client";
 
 import "../styles/globals.css";
+import "../styles/spline.css";
 import type { AppProps } from "next/app";
 import {
   ConnectionProvider,

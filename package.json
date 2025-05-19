@@ -51,6 +51,8 @@
     "@solana/wallet-adapter-react-ui": "latest",
     "@solana/wallet-adapter-wallets": "latest",
     "@solana/web3.js": "latest",
+    "@splinetool/react-spline": "^4.0.0",
+    "@splinetool/runtime": "^1.9.96",
     "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "latest",
     "assemble": "latest",

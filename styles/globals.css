@@ -83,6 +83,7 @@
 @layer base {
   * {
     @apply border-border;
+    transition: background-color 0.5s ease, border-color 0.4s ease, opacity 0.4s ease, transform 0.3s ease;
   }
   body {
     @apply bg-background text-foreground;
@@ -125,4 +126,28 @@
 /* For Spline loader to show proper height */
 html, body {
   height: 100%;
+}
+
+/* Enhanced transitions for UI elements */
+.backdrop-blur-sm,
+.backdrop-blur-md,
+.backdrop-blur-lg,
+.backdrop-blur-xl {
+  transition: backdrop-filter 0.6s ease, background-color 0.5s ease-in-out;
+}
+
+.card, 
+.rounded-lg,
+.rounded-xl,
+.border,
+.shadow-lg,
+.shadow-xl,
+.shadow-2xl {
+  transition: box-shadow 0.5s ease, border-color 0.5s ease, transform 0.4s ease-out;
+}
+
+/* Smooth hover effects */
+button:hover,
+a:hover {
+  transition: all 0.25s ease;
 }
