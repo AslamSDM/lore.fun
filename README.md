@@ -5,7 +5,7 @@
 ## Features
 
 ### Secure Solana Wallet Authentication
-
+ 
 LoreFun uses a secure, signature-based authentication system with Solana wallets. This approach provides several benefits:
 
 - No passwords to remember or store
