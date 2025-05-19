@@ -58,10 +58,12 @@ export default function SplineBackground({
       if (centralObject) {
         const targetRotationY = scrollY * 0.001;
         const targetPositionZ = Math.sin(scrollY * 0.001) * 100;
-        
+
         // Smooth rotations and movements
-        centralObject.rotation.y += (targetRotationY - centralObject.rotation.y) * 0.03;
-        centralObject.position.z += (targetPositionZ - centralObject.position.z) * 0.02;
+        centralObject.rotation.y +=
+          (targetRotationY - centralObject.rotation.y) * 0.03;
+        centralObject.position.z +=
+          (targetPositionZ - centralObject.position.z) * 0.02;
       }
 
       // Example 3: Opacity change based on scroll with smoother transitions
@@ -126,7 +128,11 @@ export default function SplineBackground({
         </div>
       )}
 
-      <Spline scene={splineUrl} onLoad={onLoad} className="transition-opacity duration-1000 ease-in-out" />
+      <Spline
+        scene={splineUrl}
+        onLoad={onLoad}
+        className="transition-opacity duration-1000 ease-in-out"
+      />
     </div>
   );
 }

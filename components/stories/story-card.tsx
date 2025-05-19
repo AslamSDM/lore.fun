@@ -48,24 +48,36 @@ export const StoryCard = ({ story, index = 0 }: StoryCardProps) => {
             <Progress value={progress} className="h-2" />
           </div>
 
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <p className="text-muted-foreground">Sentences</p>
-              <p className="font-medium">{story.sentences_count || 0}</p>
+          <div className="grid grid-cols-2 gap-4 mt-2">
+            <div className="p-3 rounded-lg bg-primary/5 border border-primary/10 flex flex-col items-center">
+              <span className="text-base font-medium mb-1">
+                {story.sentences_count || 0}
+              </span>
+              <span className="text-xs text-muted-foreground text-center">
+                Sentences
+              </span>
             </div>
-            <div>
-              <p className="text-muted-foreground">Contributors</p>
-              <p className="font-medium">{story.contributors_count || 0}</p>
+            <div className="p-3 rounded-lg bg-primary/5 border border-primary/10 flex flex-col items-center">
+              <span className="text-base font-medium mb-1">
+                {story.contributors_count || 0}
+              </span>
+              <span className="text-xs text-muted-foreground text-center">
+                Contributors
+              </span>
             </div>
-            <div>
-              <p className="text-muted-foreground">Genre</p>
-              <p className="font-medium">{story.genre}</p>
+            <div className="p-3 rounded-lg bg-primary/5 border border-primary/10 flex flex-col items-center">
+              <span className="text-base font-medium mb-1">{story.genre}</span>
+              <span className="text-xs text-muted-foreground text-center">
+                Genre
+              </span>
             </div>
-            <div>
-              <p className="text-muted-foreground">Created</p>
-              <p className="font-medium">
+            <div className="p-3 rounded-lg bg-primary/5 border border-primary/10 flex flex-col items-center">
+              <span className="text-base font-medium mb-1">
                 {new Date(story.created_at).toLocaleDateString()}
-              </p>
+              </span>
+              <span className="text-xs text-muted-foreground text-center">
+                Created
+              </span>
             </div>
           </div>
         </CardContent>
