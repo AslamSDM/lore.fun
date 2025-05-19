@@ -63,7 +63,7 @@
     "cmdk": "1.0.4",
     "components": "latest",
     "cookie": "^1.0.2",
-    "date-fns": "4.1.0",
+    "date-fns": "3.3.1",
     "embla-carousel-react": "8.5.1",
     "framer-motion": "^12.12.1",
     "grunt": "latest",
