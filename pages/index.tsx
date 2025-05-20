@@ -27,6 +27,7 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel";
+import { FeaturedStory } from "@/lib/types";
 
 // Dynamically import Spline component to avoid SSR issues
 const SplineBackground = dynamic(
@@ -81,16 +82,7 @@ export default function Home() {
   const howItWorksRef = useRef<HTMLDivElement>(null);
   const [heroInView, setHeroInView] = useState(false);
   const [howItWorksInView, setHowItWorksInView] = useState(false);
-  const [featuredStory, setFeaturedStory] = useState({
-    id: "story-1",
-    title: "The Great Adventure",
-    author: "Mystic Wizard",
-    description: "A thrilling journey through the enchanted forest.",
-    progress: 15,
-    sentencesCount: 12,
-    contributorsCount: 237,
-    timeRemaining: "2 days",
-    loreTokens: "0.0015",
+  const [featuredStory, setFeaturedStory] = useState<FeaturedStory>({
     loading: true,
   });
 
@@ -343,9 +335,7 @@ export default function Home() {
                   size="lg"
                   className="bg-primary hover:bg-primary/80 shadow-lg"
                 >
-                  <Link href={`/stories/${featuredStory.id}`}>
-                    Read Current Story
-                  </Link>
+                  <Link href={`/stories`}>Read Current Stories</Link>
                 </Button>
                 {!connected && (
                   <Button
@@ -360,117 +350,131 @@ export default function Home() {
               </div>
             </motion.div>
 
-            <motion.div variants={cardVariants}>
-              <Card className="backdrop-blur-md bg-card/40 text-card-foreground shadow-xl border-primary/30 border">
-                <CardHeader className="backdrop-blur-md bg-card/50 rounded-t-lg border-b border-primary/20">
-                  <CardTitle className="text-2xl font-bold text-primary-foreground">
-                    Featured Story - {featuredStory.title}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6 pt-6">
-                  <p className="text-foreground/90">
-                    {featuredStory.description}
-                  </p>
+            {!featuredStory.loading && (
+              <motion.div variants={cardVariants}>
+                <Card className="backdrop-blur-md bg-card/40 text-card-foreground shadow-xl border-primary/30 border">
+                  {featuredStory.loading ? (
+                    <>
+                      <CardHeader className="backdrop-blur-md bg-card/50 rounded-t-lg border-b border-primary/20">
+                        <CardTitle className="text-2xl font-bold text-primary-foreground">
+                          Featured Story - {featuredStory.title}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-6 pt-6">
+                        <p className="text-foreground/90">
+                          {featuredStory.description}
+                        </p>
 
-                  <div className="space-y-6">
-                    <div>
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center">
-                          <Image
-                            src="/logo.svg"
-                            width={24}
-                            height={24}
-                            alt="Story icon"
-                            className="opacity-80"
-                          />
-                          <span className="ml-3 text-base font-medium">
-                            Story Progress
-                          </span>
+                        <div className="space-y-6">
+                          <div>
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="flex items-center">
+                                <Image
+                                  src="/logo.svg"
+                                  width={24}
+                                  height={24}
+                                  alt="Story icon"
+                                  className="opacity-80"
+                                />
+                                <span className="ml-3 text-base font-medium">
+                                  Story Progress
+                                </span>
+                              </div>
+                              <span className="text-base font-medium text-primary">
+                                {featuredStory.progress}%
+                              </span>
+                            </div>
+                            <Progress
+                              value={featuredStory.progress}
+                              className="h-2"
+                            />
+                            <div className="flex justify-end mt-1">
+                              <span className="text-xs text-muted-foreground">
+                                {featuredStory.sentencesCount} sentences
+                                completed
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="p-4 rounded-lg bg-primary/5 border border-primary/10">
+                            <div className="grid grid-cols-3 gap-4">
+                              <div className="flex flex-col items-center p-2 rounded-lg transition-all hover:bg-primary/5">
+                                <FaUsers className="w-5 h-5 text-primary mb-2" />
+                                <span className="text-lg font-medium">
+                                  {featuredStory.loading
+                                    ? "..."
+                                    : featuredStory.contributorsCount}
+                                </span>
+                                <span className="text-xs text-muted-foreground text-center mt-1">
+                                  Contributors
+                                </span>
+                              </div>
+
+                              <div className="flex flex-col items-center border-l border-r border-primary/10 px-2 rounded-lg transition-all hover:bg-primary/5">
+                                <FaScroll className="w-5 h-5 text-primary mb-2" />
+                                <span className="text-lg font-medium">
+                                  {featuredStory.loading
+                                    ? "..."
+                                    : featuredStory.timeRemaining}
+                                </span>
+                                <span className="text-xs text-muted-foreground text-center mt-1">
+                                  Until voting ends
+                                </span>
+                              </div>
+
+                              <div className="flex flex-col items-center p-2 rounded-lg transition-all hover:bg-primary/5">
+                                <FaCoins className="w-5 h-5 text-primary mb-2" />
+                                <span className="text-lg font-medium">
+                                  {featuredStory.loading
+                                    ? "..."
+                                    : featuredStory.loreTokens}
+                                </span>
+                                <span className="text-xs text-muted-foreground text-center mt-1">
+                                  $LORE (SOL)
+                                </span>
+                              </div>
+                            </div>
+                          </div>
                         </div>
-                        <span className="text-base font-medium text-primary">
-                          {featuredStory.progress}%
-                        </span>
-                      </div>
-                      <Progress
-                        value={featuredStory.progress}
-                        className="h-2"
-                      />
-                      <div className="flex justify-end mt-1">
-                        <span className="text-xs text-muted-foreground">
-                          {featuredStory.sentencesCount} sentences completed
-                        </span>
-                      </div>
+
+                        <Button
+                          variant="secondary"
+                          className="w-full"
+                          onClick={() => {
+                            if (!connected) {
+                              notifyWarning(
+                                "Please connect your wallet first",
+                                "Wallet Required"
+                              );
+                              return;
+                            }
+                            // Check if user has enough tokens to submit
+                            if (
+                              tokenReqs.checkAction("submit", balance, () => {
+                                notifyInfo(
+                                  `You need at least ${tokenReqs.minTokensToSubmit} LORE tokens to submit a new sentence.`
+                                );
+                              })
+                            ) {
+                              window.location.href = `/submit?story=${featuredStory.id}`;
+                            }
+                          }}
+                        >
+                          Submit Next Sentence
+                        </Button>
+                      </CardContent>
+                    </>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center p-12">
+                      <h2 className="text-2xl font-bold text-primary font-medieval">
+                        {" "}
+                        No Featured Story
+                      </h2>
                     </div>
-
-                    <div className="p-4 rounded-lg bg-primary/5 border border-primary/10">
-                      <div className="grid grid-cols-3 gap-4">
-                        <div className="flex flex-col items-center p-2 rounded-lg transition-all hover:bg-primary/5">
-                          <FaUsers className="w-5 h-5 text-primary mb-2" />
-                          <span className="text-lg font-medium">
-                            {featuredStory.loading
-                              ? "..."
-                              : featuredStory.contributorsCount}
-                          </span>
-                          <span className="text-xs text-muted-foreground text-center mt-1">
-                            Contributors
-                          </span>
-                        </div>
-
-                        <div className="flex flex-col items-center border-l border-r border-primary/10 px-2 rounded-lg transition-all hover:bg-primary/5">
-                          <FaScroll className="w-5 h-5 text-primary mb-2" />
-                          <span className="text-lg font-medium">
-                            {featuredStory.loading
-                              ? "..."
-                              : featuredStory.timeRemaining}
-                          </span>
-                          <span className="text-xs text-muted-foreground text-center mt-1">
-                            Until voting ends
-                          </span>
-                        </div>
-
-                        <div className="flex flex-col items-center p-2 rounded-lg transition-all hover:bg-primary/5">
-                          <FaCoins className="w-5 h-5 text-primary mb-2" />
-                          <span className="text-lg font-medium">
-                            {featuredStory.loading
-                              ? "..."
-                              : featuredStory.loreTokens}
-                          </span>
-                          <span className="text-xs text-muted-foreground text-center mt-1">
-                            $LORE (SOL)
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <Button
-                    variant="secondary"
-                    className="w-full"
-                    onClick={() => {
-                      if (!connected) {
-                        notifyWarning(
-                          "Please connect your wallet first",
-                          "Wallet Required"
-                        );
-                        return;
-                      }
-                      // Check if user has enough tokens to submit
-                      if (
-                        tokenReqs.checkAction("submit", balance, () => {
-                          notifyInfo(
-                            `You need at least ${tokenReqs.minTokensToSubmit} LORE tokens to submit a new sentence.`
-                          );
-                        })
-                      ) {
-                        window.location.href = `/submit?story=${featuredStory.id}`;
-                      }
-                    }}
-                  >
-                    Submit Next Sentence
-                  </Button>
-                </CardContent>
-              </Card>
-            </motion.div>
+                  )}
+                </Card>
+              </motion.div>
+            )}
 
             {/* Top Stories Carousel - Full Width */}
           </div>

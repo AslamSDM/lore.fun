@@ -108,14 +108,18 @@ export const VotesAPI = {
       method: "POST",
       body: JSON.stringify(data),
     }),
-    
+
   // Check if user has already voted
   checkVote: (data: {
     story_id: string;
     user_id: string;
     round?: number;
-  }): Promise<{hasVoted: boolean, votes: any[]}> =>
-    fetchAPI(`/api/votes/check?user_id=${data.user_id}&story_id=${data.story_id}${data.round ? `&round=${data.round}` : ''}`),
+  }): Promise<{ hasVoted: boolean; votes: any[] }> =>
+    fetchAPI(
+      `/api/votes/check?user_id=${data.user_id}&story_id=${data.story_id}${
+        data.round ? `&round=${data.round}` : ""
+      }`
+    ),
 };
 
 // API Endpoints for Users
@@ -174,6 +178,5 @@ export const AuthAPI = {
   // Get current session
   getSession: (): Promise<{
     user: User | null;
-    authenticated: boolean;
-  }> => fetchAPI("/api/auth/session"),
+  }> => fetchAPI("/api/auth/me"),
 };

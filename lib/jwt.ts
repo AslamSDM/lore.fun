@@ -1,10 +1,13 @@
 import { NextApiRequest, NextApiResponse } from "next";
+import { User } from "./types";
 const jwt = require("jsonwebtoken");
+
+export type AuthenticatedRequest = NextApiRequest & { user: User };
 
 export const authenticate =
   (
     handler: (
-      req: NextApiRequest,
+      req: AuthenticatedRequest,
       res: NextApiResponse
     ) => Promise<void | NextApiResponse>
   ) =>
@@ -13,24 +16,24 @@ export const authenticate =
     const token = req.cookies.token;
 
     if (!token) {
-      return res.status(401).json({ message: "NO ACCESS" });
+      return res.status(403).json({ message: "NO ACCESS" });
     }
 
     try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET!) as {
-        userId: string;
-        walletAddress: string;
-      };
+      const decoded = jwt.verify(token, process.env.JWT_SECRET!) as User;
 
       // Attach user to request
-      (req as any).user = decoded;
-      return handler(req, res);
+
+      return handler(
+        { ...req, user: decoded } as unknown as AuthenticatedRequest,
+        res
+      );
     } catch (error) {
       return res.status(401).json({ message: "Invalid token" });
     }
   };
 
-export const generateJWT = (userId: any, walletAddress: string) =>
-  jwt.sign({ userId, walletAddress }, process.env.JWT_SECRET!, {
+export const generateJWT = (user: User) =>
+  jwt.sign(user, process.env.JWT_SECRET!, {
     expiresIn: "365d",
   });

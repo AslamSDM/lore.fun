@@ -100,9 +100,20 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   // Handle wallet connection
   useEffect(() => {
     const handleWalletConnection = async () => {
+      // Check if the wallet is connected
       if (solanaWallet.connected && solanaWallet.publicKey) {
         try {
           setLoading(true);
+          try {
+            // Check if the user is already authenticated
+            const session = await AuthAPI.getSession();
+            if (session.user) {
+              setUser(session.user);
+              setLoading(false);
+              return;
+            }
+          } catch (error) {}
+
           resetAuthState();
 
           if (!solanaWallet.signMessage) {
