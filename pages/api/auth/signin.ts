@@ -61,7 +61,7 @@ export default async function handler(
 
         // Set headers for browser to know this is an authenticated response
         res.setHeader("Cache-Control", "no-store");
-        const token = generateJWT(user.id, walletAddress);
+        const token = generateJWT(formattedUser);
         // Set HTTP-only cookie
         res.setHeader("Set-Cookie", [
           `token=${token}; ` +
