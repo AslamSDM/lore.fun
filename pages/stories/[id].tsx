@@ -48,6 +48,7 @@ export default function StoryPage({
 }: StoryPageProps) {
   const router = useRouter();
   const { id } = router.query;
+  console.log("Story ID:", id);
   const { connected } = useWallet();
   const [storyData, setStoryData] = useState<StoryData | null>(
     initialStoryData
@@ -113,10 +114,10 @@ export default function StoryPage({
   };
 
   useEffect(() => {
-    if (id && (!initialStoryData || refreshing)) {
+    if (id) {
       fetchStory();
     }
-  }, [id, initialStoryData, refreshing]);
+  }, [id]);
 
   if (loading) {
     return (
