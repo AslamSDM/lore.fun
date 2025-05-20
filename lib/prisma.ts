@@ -19,6 +19,8 @@ function createPrismaClient() {
     return new PrismaClient({
       log: isProd ? ["error", "warn"] : ["query", "error", "warn"],
       // Only log errors and warnings in production for better performance
+      errorFormat: isProd ? "minimal" : "pretty",
+      // Better error formatting for debugging
     });
   } catch (error) {
     console.error("Failed to create PrismaClient:", error);
@@ -27,7 +29,23 @@ function createPrismaClient() {
 }
 
 // Create or reuse the PrismaClient instance
-export const prisma = globalForPrisma.prisma || createPrismaClient();
+// Using if/else to prevent issues in CSR environments
+let prisma: PrismaClient;
+
+if (typeof window === "undefined") {
+  // This is server-side, so we can use the global instance or create a new one
+  prisma = globalForPrisma.prisma || createPrismaClient();
+
+  if (process.env.NODE_ENV !== "production") {
+    globalForPrisma.prisma = prisma;
+  }
+} else {
+  // Client-side - we should not be creating PrismaClient instances
+  // The API routes will handle database access
+  prisma = null as any;
+}
+
+export { prisma };
 
 // Save the client to the global object in development
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
