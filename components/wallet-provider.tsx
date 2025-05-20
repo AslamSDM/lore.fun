@@ -10,13 +10,13 @@ import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { useAuthStore } from "../lib/auth-store";
 import { AuthAPI, UsersAPI } from "../lib/api-client";
 import { useConnection } from "@solana/wallet-adapter-react";
-import { toast } from "@/components/ui/use-toast";
 import {
   useTokenBalance,
   MIN_TOKENS_TO_VOTE,
   MIN_TOKENS_TO_SUBMIT,
   MIN_TOKENS_TO_CREATE,
 } from "@/hooks/use-token-balance";
+import { toast } from "@/hooks/use-toast";
 
 interface WalletContextType {
   connected: boolean;

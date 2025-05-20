@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
@@ -5,8 +7,8 @@ import type { Story, StorySentence, Submission } from "../../lib/types";
 import { useWallet } from "../../hooks/use-wallet";
 import { StoriesAPI } from "../../lib/api-client";
 import RoundStatus from "../../components/stories/RoundStatus";
-import { GetServerSideProps } from "next";
-import { prisma } from "../../lib/prisma";
+// import { GetServerSideProps } from "next"; // Commented out for CSR
+// import { prisma } from "../../lib/prisma"; // Commented out for CSR
 import { motion } from "framer-motion";
 import {
   ScrollAnimation,

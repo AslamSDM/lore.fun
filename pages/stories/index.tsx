@@ -1,8 +1,9 @@
+"use client";
+
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import type { Story } from "../../lib/types";
-import { GetServerSideProps } from "next";
-import { prisma } from "../../lib/prisma";
+// CSR-only: removed GetServerSideProps
 import { StoryCard } from "@/components/stories/story-card";
 import {
   ScrollAnimation,
@@ -21,43 +22,38 @@ interface StoriesPageProps {
 }
 
 export default function StoriesPage({
-  initialStories,
+  initialStories = [],
   initialError = "",
 }: StoriesPageProps) {
   const { connected } = useWallet();
   const { balance } = useTokenBalance();
   const tokenReqs = useTokenRequirements();
   const { notifyWarning, notifyInfo } = useNotifications();
-  const [stories, setStories] = useState<Story[]>(initialStories);
-  const [loading, setLoading] = useState(
-    initialStories.length === 0 && !initialError
-  );
+  const [stories, setStories] = useState<Story[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(initialError);
 
   useEffect(() => {
-    // We only need to fetch data if we don't have initial data from SSR
-    // or if there was an error that needs refresh
-    if (initialStories.length === 0 || initialError) {
-      const fetchStories = async () => {
-        try {
-          const response = await fetch("/api/stories");
-          if (!response.ok) {
-            throw new Error("Failed to fetch stories");
-          }
-          const data = await response.json();
-          setStories(data);
-          setError(null);
-        } catch (err) {
-          setError("Error loading stories. Please try again later.");
-          console.error(err);
-        } finally {
-          setLoading(false);
+    // Always fetch data in CSR mode
+    const fetchStories = async () => {
+      try {
+        const response = await fetch("/api/stories");
+        if (!response.ok) {
+          throw new Error("Failed to fetch stories");
         }
-      };
+        const data = await response.json();
+        setStories(data);
+        setError(null);
+      } catch (err) {
+        setError("Error loading stories. Please try again later.");
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-      fetchStories();
-    }
-  }, [initialStories, initialError]);
+    fetchStories();
+  }, []);
 
   if (loading) {
     return (
@@ -173,7 +169,8 @@ export default function StoriesPage({
   );
 }
 
-// Server Side Props to pre-fetch data
+// Server Side Props - commented out for CSR only
+/*
 export const getServerSideProps: GetServerSideProps = async (context) => {
   // Enable caching for 60 seconds on this page
   context.res.setHeader(
@@ -248,3 +245,4 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     };
   }
 };
+*/

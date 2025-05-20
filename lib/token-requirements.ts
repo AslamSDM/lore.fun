@@ -4,7 +4,7 @@ import {
   MIN_TOKENS_TO_SUBMIT,
   MIN_TOKENS_TO_CREATE,
 } from "@/hooks/use-token-balance";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "@/hooks/use-toast";
 
 interface TokenRequirementsState {
   // Token requirements

@@ -1,5 +1,5 @@
-import { useToast } from "@/components/ui/use-toast";
 import { useEffect, useState } from "react";
+import { useToast } from "./use-toast";
 
 type NotificationType = "success" | "error" | "warning" | "info";
 
