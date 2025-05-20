@@ -30,7 +30,8 @@ export default function ProfilePage() {
   const { user, loading, refreshUser } = useWallet();
   const { balance, solBalance } = useTokenBalance();
   const tokenReqs = useTokenRequirements();
-  const { notifyWarning, notifySuccess, notifyInfo } = useNotifications();
+  const { notifyWarning, notifySuccess, notifyInfo, notifyError } =
+    useNotifications();
   const router = useRouter();
   const [stats, setStats] = useState<UserStats | null>(null);
   const [stories, setStories] = useState<Story[]>([]);
