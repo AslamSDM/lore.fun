@@ -1,7 +1,7 @@
 # LORE.FUN
 
 ## Collaborative Storytelling onchain
-
+ 
 ## Features
 
 ### Secure Solana Wallet Authentication
