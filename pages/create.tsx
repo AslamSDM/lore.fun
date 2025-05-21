@@ -35,7 +35,7 @@ export default function CreateStoryPage() {
       notifyWarning("Please fill in all required fields.", "Incomplete Form");
       return;
     }
-    if (balance < tokenReqs.minTokensToCreate) {
+    if (balance <= tokenReqs.minTokensToCreate) {
       notifyWarning(
         `You need at least ${tokenReqs.minTokensToCreate} LORE tokens to create a new story. You currently have ${balance} LORE.`,
         "Insufficient Tokens"

@@ -1,7 +1,13 @@
 import { useEffect, useState } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useConnection } from "@solana/wallet-adapter-react";
-import { PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
+import {
+  PublicKey,
+  LAMPORTS_PER_SOL,
+  Connection,
+  clusterApiUrl,
+  Commitment,
+} from "@solana/web3.js";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import * as splToken from "@solana/spl-token";
 
@@ -18,7 +24,6 @@ const LORE_TOKEN_MINT = new PublicKey(
 
 export function useTokenBalance() {
   const { publicKey, connected } = useWallet();
-  const { connection } = useConnection();
   const [balance, setBalance] = useState(0);
   const [solBalance, setSolBalance] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -30,22 +35,37 @@ export function useTokenBalance() {
   const canCreate = balance >= MIN_TOKENS_TO_CREATE;
 
   const fetchBalance = async () => {
-    if (!publicKey || !connection) return;
-
+    console.log("Fetching balance for:", "adsa");
+    if (!publicKey) return;
+    console.log("Fetching balance for:", publicKey.toString());
     setLoading(true);
     setError(null);
 
+    // Create a standalone connection to avoid using user ID in connection requests
+    const standaloneConnection = new Connection(
+      "https://mainnet.helius-rpc.com/?api-key=0462af4b-5e18-4b2a-b593-2afe807a0db8",
+      "processed"
+    );
+
     try {
-      // Fetch SOL balance
-      const solanaBalance = await connection.getBalance(publicKey);
-      setSolBalance(solanaBalance / LAMPORTS_PER_SOL);
+      // Fetch SOL balance with standalone connection
+      try {
+        const solanaBalance = await standaloneConnection.getBalance(publicKey);
+        setSolBalance(solanaBalance / LAMPORTS_PER_SOL);
+      } catch (solError) {
+        console.error("Error fetching SOL balance:", solError);
+        // Use a default value for development
+        setSolBalance(0);
+      }
 
       try {
-        // Find all token accounts owned by the user
-        const tokenAccounts = await connection.getParsedTokenAccountsByOwner(
-          publicKey,
-          { programId: TOKEN_PROGRAM_ID }
-        );
+        // Find all token accounts owned by the user using standalone connection
+        const tokenAccounts =
+          await standaloneConnection.getParsedTokenAccountsByOwner(
+            publicKey,
+            { programId: TOKEN_PROGRAM_ID },
+            "processed"
+          );
 
         // Log available token accounts for debugging
         console.log(`Found ${tokenAccounts.value.length} token accounts`);
@@ -99,6 +119,7 @@ export function useTokenBalance() {
 
   // Refresh balance periodically and on wallet changes
   useEffect(() => {
+    console.log("useTokenBalance effect triggered", connected, publicKey);
     if (connected && publicKey) {
       fetchBalance();
 
@@ -109,17 +130,25 @@ export function useTokenBalance() {
       setBalance(0);
       setSolBalance(0);
     }
-  }, [connected, publicKey, connection]);
+  }, [connected, publicKey]);
 
   // Function to check if the user has a specific SPL token
   const hasToken = async (tokenMint: string): Promise<boolean> => {
-    if (!publicKey || !connection) return false;
+    if (!publicKey) return false;
+
+    // Create a standalone connection to avoid using user ID in connection requests
+    const standaloneConnection = new Connection(
+      clusterApiUrl("devnet"),
+      "processed"
+    );
 
     try {
-      const tokenAccounts = await connection.getParsedTokenAccountsByOwner(
-        publicKey,
-        { programId: TOKEN_PROGRAM_ID }
-      );
+      const tokenAccounts =
+        await standaloneConnection.getParsedTokenAccountsByOwner(
+          publicKey,
+          { programId: TOKEN_PROGRAM_ID },
+          "processed"
+        );
 
       return tokenAccounts.value.some((account) => {
         const parsedInfo = account.account.data.parsed.info;

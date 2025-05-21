@@ -122,7 +122,7 @@ export default function SubmitPage({
       );
       return;
     }
-    if (balance < tokenReq.minTokensToSubmit) {
+    if (balance <= tokenReq.minTokensToSubmit) {
       notifyWarning(
         `You need at least ${tokenReq.minTokensToSubmit} LORE tokens to submit.`,
         "Insufficient Tokens"

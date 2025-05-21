@@ -113,7 +113,7 @@ export default function VotePage() {
       notifyWarning("Please select a submission to vote", "Selection Required");
       return;
     }
-    if (balance < tokenReqs.minTokensToVote) {
+    if (balance <= tokenReqs.minTokensToVote) {
       notifyWarning(
         `You need at least ${tokenReqs.minTokensToVote} LORE tokens to vote. You currently have ${balance} LORE.`,
         "Insufficient Tokens"
@@ -124,7 +124,6 @@ export default function VotePage() {
       notifyInfo("You have already voted in this round", "Already Voted");
       return;
     }
-
     try {
       setIsSubmitting(true);
       setError(null);

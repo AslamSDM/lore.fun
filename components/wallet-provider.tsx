@@ -73,8 +73,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [solBalance, setSolBalance] = useState(0);
 
   // Update the local state variables when the hook values change
+
   useEffect(() => {
     if (solanaWallet.connected) {
+      refreshBalance();
       setBalance(tokenBalance);
       setSolBalance(solanaTokenBalance);
 
@@ -279,7 +281,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
     switch (action) {
       case "vote":
-        if (balance < MIN_TOKENS_TO_VOTE) {
+        if (balance <= MIN_TOKENS_TO_VOTE) {
           toast({
             title: "Insufficient Tokens",
             description: `You need at least ${MIN_TOKENS_TO_VOTE} LORE tokens to vote on submissions.`,
@@ -289,7 +291,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         }
         return true;
       case "submit":
-        if (balance < MIN_TOKENS_TO_SUBMIT) {
+        if (balance <= MIN_TOKENS_TO_SUBMIT) {
           toast({
             title: "Insufficient Tokens",
             description: `You need at least ${MIN_TOKENS_TO_SUBMIT} LORE tokens to submit a new sentence.`,
@@ -299,7 +301,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         }
         return true;
       case "create":
-        if (balance < MIN_TOKENS_TO_CREATE) {
+        if (balance <= MIN_TOKENS_TO_CREATE) {
           toast({
             title: "Insufficient Tokens",
             description: `You need at least ${MIN_TOKENS_TO_CREATE} LORE tokens to create a new story.`,
