@@ -44,7 +44,9 @@ export const StoriesAPI = {
   getAll: (): Promise<Story[]> => fetchAPI("/api/stories"),
 
   // Get a story by ID
-  getById: (id: string | number): Promise<Story & { sentences: StorySentence[] }> =>
+  getById: (
+    id: string | number
+  ): Promise<Story & { sentences: StorySentence[] }> =>
     fetchAPI(`/api/stories/${id}`),
 
   // Create a new story
@@ -119,15 +121,15 @@ export const VotesAPI = {
     const params = new URLSearchParams();
     params.append("user_id", data.user_id);
     params.append("story_id", data.story_id.toString());
-    
+
     if (data.round) {
       params.append("round", data.round.toString());
     }
-    
+
     if (data.submission_id) {
       params.append("submission_id", data.submission_id.toString());
     }
-    
+
     return fetchAPI(`/api/votes/check?${params.toString()}`);
   },
 };
@@ -148,30 +150,24 @@ export const SubmissionsAPI = {
 
 // API Endpoints for Users
 export const UsersAPI = {
-  // Get a user by ID
-  getById: (id: string): Promise<User> => fetchAPI(`/api/users/${id}`),
+  // Get user profile
+  getProfile: (userId: string): Promise<User> =>
+    fetchAPI(`/api/users/${userId}`),
 
-  // Update a user
-  update: (
-    id: string,
-    data: {
-      username?: string;
-      bio?: string;
-      avatarUrl?: string;
-    }
-  ): Promise<User> =>
-    fetchAPI(`/api/users/${id}`, {
+  // Get user stats
+  getStats: (userId: string): Promise<UserStats> =>
+    fetchAPI(`/api/users/${userId}/stats`),
+
+  // Update username
+  updateUsername: (userId: string, username: string): Promise<UserResponse> =>
+    fetchAPI(`/api/users/${userId}`, {
       method: "PUT",
-      body: JSON.stringify(data),
+      body: JSON.stringify({ username }),
     }),
 
-  // Get a user's statistics
-  getStats: (id: string): Promise<UserStats> =>
-    fetchAPI(`/api/users/${id}/stats`),
-
-  // Get a user's created stories
-  getStories: (id: string): Promise<Story[]> =>
-    fetchAPI(`/api/users/${id}/stories`),
+  // Get user's stories
+  getStories: (userId: string): Promise<Story[]> =>
+    fetchAPI(`/api/users/${userId}/stories`),
 };
 
 // API Endpoints for Authentication

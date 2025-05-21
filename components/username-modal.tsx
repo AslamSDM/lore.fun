@@ -62,7 +62,7 @@ export default function UsernameModal({ isOpen, onClose }: UsernameModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black  flex items-center justify-center z-50 p-4">
       <div className="bg-gray-800 border border-gray-700 rounded-lg max-w-md w-full p-6 shadow-lg">
         <h2 className="text-2xl font-bold mb-2">Welcome to Lore.Fun!</h2>
         <p className="text-gray-300 mb-6">

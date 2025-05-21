@@ -47,6 +47,15 @@ export default authenticate(async function handler(
       }
 
       try {
+        // First check if the user exists
+        const userExists = await prisma.user.findUnique({
+          where: { id: id as string },
+        });
+
+        if (!userExists) {
+          return res.status(404).json({ error: "User not found" });
+        }
+        
         // Check if username is already taken
         const existingUser = await prisma.user.findFirst({
           where: {
