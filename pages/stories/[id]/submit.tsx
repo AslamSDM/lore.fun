@@ -135,12 +135,7 @@ export default function SubmitPage({
       setError("");
 
       // Use our API client to submit the continuation
-      await SubmissionsAPI.create({
-        story_id: id as string,
-        content: submission,
-        submitted_by: user.id,
-        voting_round: storyData?.current_round.position || 1,
-      });
+      await SubmissionsAPI.create(id as string, submission, user.id);
 
       setSubmitSuccess(true);
       notifySuccess(

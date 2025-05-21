@@ -44,7 +44,7 @@ export const StoriesAPI = {
   getAll: (): Promise<Story[]> => fetchAPI("/api/stories"),
 
   // Get a story by ID
-  getById: (id: string): Promise<Story & { sentences: StorySentence[] }> =>
+  getById: (id: string | number): Promise<Story & { sentences: StorySentence[] }> =>
     fetchAPI(`/api/stories/${id}`),
 
   // Create a new story
@@ -62,7 +62,7 @@ export const StoriesAPI = {
 
   // Check if a round can be ended
   checkRoundStatus: (
-    id: string
+    id: string | number
   ): Promise<{
     canEndRound: boolean;
     votingEndDate: string;
@@ -73,7 +73,7 @@ export const StoriesAPI = {
 
   // End the current voting round
   endRound: (
-    id: string,
+    id: string | number,
     force: boolean = false
   ): Promise<{
     success: boolean;
@@ -101,7 +101,7 @@ interface VoteResponse {
 export const VotesAPI = {
   // Cast a vote
   cast: (data: {
-    submission_id: string;
+    submission_id: string | number;
     user_id: string;
   }): Promise<VoteResponse> =>
     fetchAPI("/api/votes", {
@@ -111,72 +111,87 @@ export const VotesAPI = {
 
   // Check if user has already voted
   checkVote: (data: {
-    story_id: string;
+    story_id: string | number;
     user_id: string;
     round?: number;
-  }): Promise<{ hasVoted: boolean; votes: any[] }> =>
-    fetchAPI(
-      `/api/votes/check?user_id=${data.user_id}&story_id=${data.story_id}${
-        data.round ? `&round=${data.round}` : ""
-      }`
-    ),
-};
-
-// API Endpoints for Users
-export const UsersAPI = {
-  // Get user profile
-  getProfile: (userId: string): Promise<User> =>
-    fetchAPI(`/api/users/${userId}`),
-
-  // Get user stats
-  getStats: (userId: string): Promise<UserStats> =>
-    fetchAPI(`/api/users/${userId}/stats`),
-
-  // Update username
-  updateUsername: (userId: string, username: string): Promise<UserResponse> =>
-    fetchAPI(`/api/users/${userId}`, {
-      method: "PUT",
-      body: JSON.stringify({ username }),
-    }),
-
-  // Get user's stories
-  getStories: (userId: string): Promise<Story[]> =>
-    fetchAPI(`/api/users/${userId}/stories`),
+    submission_id?: string | number;
+  }): Promise<{ hasVoted: boolean; votes: any[] }> => {
+    const params = new URLSearchParams();
+    params.append("user_id", data.user_id);
+    params.append("story_id", data.story_id.toString());
+    
+    if (data.round) {
+      params.append("round", data.round.toString());
+    }
+    
+    if (data.submission_id) {
+      params.append("submission_id", data.submission_id.toString());
+    }
+    
+    return fetchAPI(`/api/votes/check?${params.toString()}`);
+  },
 };
 
 // API Endpoints for Submissions
 export const SubmissionsAPI = {
   // Create a new submission
-  create: (data: {
-    story_id: string;
-    content: string;
-    submitted_by: string;
-    voting_round: number;
-  }): Promise<Submission> =>
+  create: (
+    story_id: string | number,
+    content: string,
+    submitted_by: string
+  ): Promise<Submission> =>
     fetchAPI("/api/submissions", {
       method: "POST",
+      body: JSON.stringify({ story_id, content, submitted_by }),
+    }),
+};
+
+// API Endpoints for Users
+export const UsersAPI = {
+  // Get a user by ID
+  getById: (id: string): Promise<User> => fetchAPI(`/api/users/${id}`),
+
+  // Update a user
+  update: (
+    id: string,
+    data: {
+      username?: string;
+      bio?: string;
+      avatarUrl?: string;
+    }
+  ): Promise<User> =>
+    fetchAPI(`/api/users/${id}`, {
+      method: "PUT",
       body: JSON.stringify(data),
     }),
+
+  // Get a user's statistics
+  getStats: (id: string): Promise<UserStats> =>
+    fetchAPI(`/api/users/${id}/stats`),
+
+  // Get a user's created stories
+  getStories: (id: string): Promise<Story[]> =>
+    fetchAPI(`/api/users/${id}/stories`),
 };
 
 // API Endpoints for Authentication
 export const AuthAPI = {
-  // Sign in with wallet address and signature
+  // Get the current user
+  me: (): Promise<UserResponse> => fetchAPI("/api/auth/me"),
+
+  // Sign in with a wallet
   signin: (
     walletAddress: string,
-    signature: string
+    signature: string,
+    message: string
   ): Promise<{
-    authenticated: boolean;
-    user: User;
-    isNewUser: boolean;
+    success: boolean;
+    user?: User;
+    token?: string;
+    error?: string;
   }> =>
     fetchAPI("/api/auth/signin", {
       method: "POST",
-      body: JSON.stringify({ walletAddress, signature }),
+      body: JSON.stringify({ walletAddress, signature, message }),
     }),
-
-  // Get current session
-  getSession: (): Promise<{
-    user: User | null;
-  }> => fetchAPI("/api/auth/me"),
 };

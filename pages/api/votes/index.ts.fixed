@@ -13,18 +13,10 @@ export default async function handler(
         return res.status(400).json({ error: "Missing required fields" });
       }
 
-      // Parse submission_id as integer to match database schema
-      const submissionId = parseInt(submission_id, 10);
-
-      // Validate that it's a valid number
-      if (isNaN(submissionId)) {
-        return res.status(400).json({ error: "Invalid submission ID format" });
-      }
-
       try {
         // First, get the submission to find the story and round
         const submission = await prisma.submission.findUnique({
-          where: { id: submissionId },
+          where: { id: submission_id },
           include: {
             story: {
               include: {
@@ -53,7 +45,7 @@ export default async function handler(
         // Check if user already voted for this submission
         const existingVote = await prisma.vote.findFirst({
           where: {
-            submissionId: submissionId,
+            submissionId: submission_id,
             userId: user_id,
           },
         });
@@ -67,7 +59,7 @@ export default async function handler(
         // Create the vote
         const vote = await prisma.vote.create({
           data: {
-            submissionId: submissionId,
+            submissionId: submission_id,
             userId: user_id,
           },
         });

@@ -24,11 +24,13 @@ model User {
   votes          Vote[]
 
   @@index([username])
+  @@index([walletAddress]) // For wallet address lookup
+  @@index([createdAt]) // For user registration analytics
   @@map("users")
 }
 
 model Story {
-  id                    String   @id @default(uuid())
+  id                    Int      @id @default(autoincrement())
   title                 String
   subtitle              String?
   genre                 String
@@ -47,12 +49,14 @@ model Story {
 
   @@index([createdById])
   @@index([createdAt])
+  @@index([genre, createdAt]) // For genre-specific story browsing
+  @@index([title]) // For title-based searches
   @@map("stories")
 }
 
 model StorySentence {
-  id          String   @id @default(uuid())
-  storyId     String   @map("story_id")
+  id          Int      @id @default(autoincrement())
+  storyId     Int      @map("story_id")
   content     String
   position    Int
   submittedBy String   @map("submitted_by")
@@ -65,12 +69,13 @@ model StorySentence {
   @@unique([storyId, position])
   @@index([storyId, createdAt])
   @@index([submittedBy])
+  @@index([storyId, position, createdAt]) // Optimized for story timeline queries
   @@map("story_sentences")
 }
 
 model Submission {
-  id          String   @id @default(uuid())
-  storyId     String   @map("story_id")
+  id          Int      @id @default(autoincrement())
+  storyId     Int      @map("story_id")
   content     String
   submittedBy String   @map("submitted_by")
   votingRound Int      @map("voting_round")
@@ -85,12 +90,14 @@ model Submission {
   @@index([storyId, votingRound]) // For faster queries on submissions for specific voting rounds
   @@index([submittedBy])
   @@index([isWinner])
+  @@index([storyId, votingRound, isWinner]) // Optimized for voting round analytics
+  @@index([isWinner, createdAt]) // Optimized for winning submissions queries
   @@map("submissions")
 }
 
 model Vote {
-  id           String   @id @default(uuid())
-  submissionId String   @map("submission_id")
+  id           Int      @id @default(autoincrement())
+  submissionId Int      @map("submission_id")
   userId       String   @map("user_id")
   createdAt    DateTime @default(now()) @map("created_at")
 
@@ -102,5 +109,7 @@ model Vote {
   @@unique([submissionId, userId])
   @@index([userId])
   @@index([submissionId])
+  @@index([submissionId, createdAt]) // For vote timing analysis
+  @@index([userId, createdAt]) // For user voting activity timeline
   @@map("votes")
 }

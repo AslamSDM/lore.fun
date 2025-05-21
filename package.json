@@ -11,6 +11,8 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "db:seed": "prisma db seed",
+    "db:reset-seed": "./seed-db.sh",
+    "db:reset-seed-studio": "./seed-db.sh --studio",
     "postinstall": "prisma generate"
   },
   "prisma": {

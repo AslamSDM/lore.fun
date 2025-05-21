@@ -8,14 +8,32 @@ export default async function handler(
   if (req.method === "GET") {
     return runPrismaInApi(req, res, async (prisma) => {
       // Get query params
-      const { user_id, story_id, round } = req.query;
+      const { user_id, story_id, round, submission_id } = req.query;
 
       // Validate required parameters
       if (!user_id || !story_id) {
         return res.status(400).json({ error: "Missing required parameters" });
       }
+      
+      // Parse story_id as integer to match database schema
+      const storyId = parseInt(story_id as string, 10);
+      
+      // Validate that it's a valid number
+      if (isNaN(storyId)) {
+        return res.status(400).json({ error: "Invalid story ID format" });
+      }
 
-      const roundNumber = round ? parseInt(round as string) : undefined;
+      // Parse round if present
+      const roundNumber = round ? parseInt(round as string, 10) : undefined;
+      
+      // Parse submission_id if present
+      let submissionId: number | undefined;
+      if (submission_id) {
+        submissionId = parseInt(submission_id as string, 10);
+        if (isNaN(submissionId)) {
+          return res.status(400).json({ error: "Invalid submission ID format" });
+        }
+      }
 
       try {
         // Find any votes by this user for this story in the specified round
@@ -23,8 +41,9 @@ export default async function handler(
           where: {
             userId: user_id as string,
             submission: {
-              storyId: story_id as string,
+              storyId: storyId,
               ...(roundNumber ? { votingRound: roundNumber } : {}),
+              ...(submissionId ? { id: submissionId } : {}),
             },
           },
           include: {

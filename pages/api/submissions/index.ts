@@ -13,13 +13,21 @@ export default async function handler(
         return res.status(400).json({ error: "Missing required fields" });
       }
 
+      // Parse story_id as integer since Story model uses Int for id
+      const storyId = parseInt(story_id, 10);
+
+      // Validate that it's a valid number
+      if (isNaN(storyId)) {
+        return res.status(400).json({ error: "Invalid story ID format" });
+      }
+
       // Start performance timer
       const startTime = performance.now();
 
       try {
         // Get the story with sentences to check round status using transaction
         const story = await tx.story.findUnique({
-          where: { id: story_id },
+          where: { id: storyId },
           include: {
             sentences: {
               orderBy: { position: "desc" },
@@ -61,7 +69,7 @@ export default async function handler(
         // If it is, note this as it may trigger a voting period start
         const existingSubmissionCount = await tx.submission.count({
           where: {
-            storyId: story_id,
+            storyId: storyId,
             votingRound: currentRound,
           },
         });
@@ -71,7 +79,7 @@ export default async function handler(
         // Create the submission using the transaction
         const submission = await tx.submission.create({
           data: {
-            storyId: story_id,
+            storyId: storyId,
             content,
             submittedBy: submitted_by,
             votingRound: currentRound,

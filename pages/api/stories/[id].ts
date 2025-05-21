@@ -7,6 +7,14 @@ export default async function handler(
 ) {
   const { id } = req.query;
 
+  // Parse id as integer since Story model uses Int for id
+  const storyId = parseInt(id as string, 10);
+
+  // Validate that it's a valid number
+  if (isNaN(storyId)) {
+    return res.status(400).json({ error: "Invalid story ID format" });
+  }
+
   if (req.method === "GET") {
     return runPrismaTransaction(req, res, async (tx) => {
       try {
@@ -17,7 +25,7 @@ export default async function handler(
         const [story, sentences] = await Promise.all([
           // Get story details with creator
           tx.story.findUnique({
-            where: { id: id as string },
+            where: { id: storyId },
             include: {
               creator: {
                 select: {
@@ -30,7 +38,7 @@ export default async function handler(
 
           // Get story sentences with authors in one query
           tx.storySentence.findMany({
-            where: { storyId: id as string },
+            where: { storyId: storyId },
             orderBy: { position: "asc" },
             include: {
               author: {
@@ -53,7 +61,7 @@ export default async function handler(
         // Get submissions with votes and efficient vote counting
         const submissionsWithVotes = await tx.submission.findMany({
           where: {
-            storyId: id as string,
+            storyId: storyId,
             votingRound: currentRoundPosition,
           },
           include: {
@@ -128,7 +136,7 @@ export default async function handler(
           const executionTime = performance.now() - startTime;
           if (executionTime > 100) {
             console.warn(
-              `SLOW ENDPOINT: GET /api/stories/${id} took ${executionTime.toFixed(
+              `SLOW ENDPOINT: GET /api/stories/${storyId} took ${executionTime.toFixed(
                 2
               )}ms`
             );

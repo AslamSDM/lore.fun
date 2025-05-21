@@ -13,11 +13,19 @@ export default async function handler(
   res: NextApiResponse
 ) {
   const { id } = req.query;
-  const storyId = id as string;
+  
+  // Parse id as integer since Story model uses Int for id
+  const storyId = parseInt(id as string, 10);
+  
+  // Validate that it's a valid number
+  if (isNaN(storyId)) {
+    return res.status(400).json({ error: "Invalid story ID format" });
+  }
 
   // For GET requests, check if we can use the cache to avoid database query
-  if (req.method === "GET" && storyId) {
-    const cached = storyCache[storyId];
+  if (req.method === "GET") {
+    const cacheKey = storyId.toString();
+    const cached = storyCache[cacheKey];
     const now = Date.now();
 
     // Return cached data if it's fresh (within TTL)
@@ -53,7 +61,7 @@ export default async function handler(
         // Get submissions with optimized query - select only what we need
         const submissions = await tx.submission.findMany({
           where: {
-            storyId,
+            storyId: storyId,
             votingRound: currentRoundPosition,
           },
           include: {
@@ -99,85 +107,77 @@ export default async function handler(
           });
         }
 
-        // Find submission with the most votes - optimize by using _count directly
-        let maxVotes = submissions.length > 0 ? submissions[0]._count.votes : 0;
-        let winningSubmissions = submissions.filter(
-          (sub) => sub._count.votes === maxVotes
-        );
+        // Find the winning submission
+        let winningSubmission;
+        let maxVotes = -1;
 
-        // Find max votes in a single pass through the array
-        for (const sub of submissions) {
-          const voteCount = sub._count.votes;
-          if (voteCount > maxVotes) {
-            maxVotes = voteCount;
-            winningSubmissions = [sub];
-          } else if (
-            voteCount === maxVotes &&
-            voteCount > 0 &&
-            sub.id !== winningSubmissions[0]?.id
-          ) {
-            winningSubmissions.push(sub);
+        for (const submission of submissions) {
+          const votesCount = submission.votes.length;
+          if (votesCount > maxVotes) {
+            maxVotes = votesCount;
+            winningSubmission = submission;
           }
         }
 
-        // Handle tie by checking if we should wait for more votes or break the tie
-        if (winningSubmissions.length > 1) {
-          // If the voting period has just ended (within the last day) and we have a tie,
-          // optionally wait for a tie-breaking vote before automatically resolving
-          const justEnded =
-            now.getTime() - votingEndDate.getTime() < 24 * 60 * 60 * 1000;
-          const shouldWaitForTieBreak =
-            justEnded && !req.body.force && req.body.waitForTieBreak !== false;
-
-          if (shouldWaitForTieBreak) {
-            return res.status(202).json({
-              canEnd: true,
-              hasTie: true,
-              waitingForTieBreak: true,
-              tiedSubmissions: winningSubmissions.map((sub) => ({
-                id: sub.id,
-                content: sub.content,
-                votes: sub._count.votes,
-              })),
-              votingEndDate: votingEndDate.toISOString(),
-              message: "Tie detected. Waiting for tie-breaking votes.",
-            });
-          }
-
-          // If we're already ordered by creation date, just take the first one
-          winningSubmissions.sort(
-            (a, b) => a.createdAt.getTime() - b.createdAt.getTime()
-          );
-        }
-
-        // Add the winning submission as the next sentence
-        const result = await SentenceService.addWinningSubmissionAsSentence(
-          winningSubmissions.length > 0
-            ? winningSubmissions[0].id
-            : submissions[0].id
-        );
-
-        if (!result.success) {
-          return res.status(500).json({
-            error: result.error || "Failed to add winning submission",
+        if (!winningSubmission) {
+          return res.status(400).json({
+            error: "Could not determine a winning submission",
+            canEnd: false,
           });
         }
 
-        // Log performance metrics
-        const executionTime = performance.now() - startTime;
-        if (executionTime > 100) {
-          console.warn(
-            `POST /stories/${storyId}/end-round took ${executionTime.toFixed(
-              2
-            )}ms`
-          );
-        }
+        // Mark the winning submission
+        await tx.submission.update({
+          where: { id: winningSubmission.id },
+          data: { isWinner: true },
+        });
 
-        return res.status(200).json({
+        // Add the winning submission as the next sentence
+        await SentenceService.addSentence(
+          tx,
+          storyId,
+          winningSubmission.content,
+          currentRoundPosition,
+          winningSubmission.submittedBy
+        );
+
+        // Check if we've reached the minimum number of sentences
+        const isComplete = currentRoundPosition >= story.minSentences;
+
+        // Return success
+        const result = {
           success: true,
           message: "Round ended successfully",
-          winningSentence: result.sentence,
-        });
+          story_id: storyId,
+          winning_submission: {
+            id: winningSubmission.id,
+            content: winningSubmission.content,
+            votes_count: maxVotes,
+          },
+          is_complete: isComplete,
+        };
+
+        // Store in cache if it's a reasonable response size
+        if (JSON.stringify(result).length < 10000) {
+          storyCache[storyId.toString()] = {
+            data: result,
+            timestamp: Date.now(),
+          };
+        }
+
+        // Log performance in development
+        if (process.env.NODE_ENV !== "production") {
+          const executionTime = performance.now() - startTime;
+          if (executionTime > 200) {
+            console.warn(
+              `SLOW OPERATION: End round for story ${storyId} took ${executionTime.toFixed(
+                2
+              )}ms`
+            );
+          }
+        }
+
+        return res.status(200).json(result);
       } catch (error) {
         console.error("Error ending round:", error);
         return res.status(500).json({ error: (error as Error).message });
@@ -185,27 +185,20 @@ export default async function handler(
     });
   }
 
-  // Also allow GET requests to check if a round can be ended - using transaction for efficiency
+  // Handle GET request to check if round can be ended
   if (req.method === "GET") {
     return runPrismaTransaction(req, res, async (tx) => {
       try {
         // Start performance timer
         const startTime = performance.now();
 
-        // Get story details - optimize query by selecting only needed fields
+        // Get story details
         const story = await tx.story.findUnique({
           where: { id: storyId },
-          select: {
-            id: true,
-            votingPeriodDays: true,
-            createdAt: true,
+          include: {
             sentences: {
               orderBy: { position: "desc" },
               take: 1,
-              select: {
-                position: true,
-                createdAt: true,
-              },
             },
           },
         });
@@ -214,57 +207,85 @@ export default async function handler(
           return res.status(404).json({ error: "Story not found" });
         }
 
-        // Calculate current round position
+        // Calculate the current round
         const currentRoundPosition = story.sentences.length + 1;
 
-        // Get submissions count for current round
+        // Get submissions count
         const submissionsCount = await tx.submission.count({
           where: {
-            storyId,
+            storyId: storyId,
             votingRound: currentRoundPosition,
           },
         });
 
-        // Calculate voting end date and check if voting period has ended
+        // Calculate voting end date
         const lastSentenceDate =
           story.sentences.length > 0
             ? new Date(story.sentences[0].createdAt)
             : new Date(story.createdAt);
 
+        // Calculate submission end date
+        const submissionEndDate = new Date(lastSentenceDate);
+        submissionEndDate.setHours(
+          submissionEndDate.getHours() + story.submissionPeriodHours
+        );
+
+        // Calculate voting end date
         const votingEndDate = new Date(lastSentenceDate);
         votingEndDate.setDate(votingEndDate.getDate() + story.votingPeriodDays);
 
+        // Check current status
         const now = new Date();
-        const canEndRound = now >= votingEndDate;
+        const isSubmissionPeriod = now < submissionEndDate;
+        const isVotingPeriod = now >= submissionEndDate && now < votingEndDate;
+        const votingEnded = now >= votingEndDate;
 
-        // Create response
-        const response = {
-          canEndRound,
-          votingEndDate: votingEndDate.toISOString(),
-          remainingTime: canEndRound
-            ? 0
-            : votingEndDate.getTime() - now.getTime(),
-          submissionsCount,
-          currentRound: currentRoundPosition,
+        // Calculate time remaining
+        let timeRemaining;
+        if (isSubmissionPeriod) {
+          timeRemaining = submissionEndDate.getTime() - now.getTime();
+        } else if (isVotingPeriod) {
+          timeRemaining = votingEndDate.getTime() - now.getTime();
+        } else {
+          timeRemaining = 0;
+        }
+
+        // Format the response
+        const result = {
+          story_id: storyId,
+          current_round: currentRoundPosition,
+          submissions_count: submissionsCount,
+          can_end_round: votingEnded && submissionsCount > 0,
+          waiting_for_submissions: submissionsCount === 0,
+          is_submission_period: isSubmissionPeriod,
+          is_voting_period: isVotingPeriod,
+          voting_ended: votingEnded,
+          submission_end_date: submissionEndDate.toISOString(),
+          voting_end_date: votingEndDate.toISOString(),
+          time_remaining: timeRemaining,
+          min_sentences: story.minSentences,
+          is_complete: currentRoundPosition >= story.minSentences,
         };
 
-        // Cache the result to avoid repeated identical queries
-        storyCache[storyId] = {
-          data: response,
+        // Store in cache
+        storyCache[storyId.toString()] = {
+          data: result,
           timestamp: Date.now(),
         };
 
-        // Log performance metrics
-        const executionTime = performance.now() - startTime;
-        if (executionTime > 100) {
-          console.warn(
-            `GET /stories/${storyId}/end-round took ${executionTime.toFixed(
-              2
-            )}ms`
-          );
+        // Log performance in development
+        if (process.env.NODE_ENV !== "production") {
+          const executionTime = performance.now() - startTime;
+          if (executionTime > 100) {
+            console.warn(
+              `SLOW QUERY: GET /api/stories/${storyId}/end-round took ${executionTime.toFixed(
+                2
+              )}ms`
+            );
+          }
         }
 
-        return res.status(200).json(response);
+        return res.status(200).json(result);
       } catch (error) {
         console.error("Error checking round status:", error);
         return res.status(500).json({ error: (error as Error).message });
